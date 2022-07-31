@@ -79,11 +79,11 @@ trait MessageTrait
         $value = $this->validateAndTrimHeader($name, $value);
         $lowercase = strtolower($name);
         $clone = clone $this;
-        if(isset($this->headerNames[$lowercase])){
-            unset($this->headerNames[$lowercase]);
+        if(isset($clone->headerNames[$lowercase])){
+            unset($clone->headerNames[$lowercase]);
         }
-        $this->headerNames[$lowercase] = $name;
-        $this->headers[$name] = $value;
+        $clone->headerNames[$lowercase] = $name;
+        $clone->headers[$name] = $value;
         return $clone;
     }
 
