@@ -7,7 +7,7 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 InitPHP
  * @license    http://initphp.github.com/license.txt  MIT
- * @version    1.0
+ * @version    1.0.3
  * @link       https://www.muhammetsafak.com.tr
  */
 
