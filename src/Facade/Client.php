@@ -18,10 +18,21 @@ namespace InitPHP\HTTP\Facade;
 
 use InitPHP\HTTP\Facade\Interfaces\FacadebleInterface;
 use InitPHP\HTTP\Facade\Traits\Facadeble;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * @mixin \InitPHP\HTTP\Client\Client
  * @method static \Psr\Http\Message\ResponseInterface sendRequest(\Psr\Http\Message\RequestInterface $request)
+ * @method static string getUserAgent()
+ * @method static \InitPHP\HTTP\Client\Client setUserAgent(?string $userAgent = null)
+ * @method static \InitPHP\HTTP\Client\Client withUserAgent(?string $userAgent = null)
+ * @method static ResponseInterface fetch(string $url, array $details = [])
+ * @method static ResponseInterface get(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
+ * @method static ResponseInterface post(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
+ * @method static ResponseInterface patch(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
+ * @method static ResponseInterface put(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
+ * @method static ResponseInterface delete(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
+ * @method static ResponseInterface head(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
  */
 final class Client implements FacadebleInterface
 {

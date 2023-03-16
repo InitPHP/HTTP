@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use InitPHP\HTTP\Message\Interfaces\StreamInterface;
+use \InitPHP\HTTP\Message\Interfaces\StreamInterface;
 use \Throwable;
 use \RuntimeException;
 use \InvalidArgumentException;

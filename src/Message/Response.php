@@ -195,7 +195,7 @@ class Response implements ResponseInterface
 
     public function json(array $data = [], int $status = 200): self
     {
-        return $this->addedHeader('Content-Type', 'application/json')
+        return (clone $this)->addedHeader('Content-Type', 'application/json')
             ->setBody(new Stream(json_encode($data), null))
             ->setStatusCode($status);
     }
@@ -209,11 +209,13 @@ class Response implements ResponseInterface
             throw new InvalidArgumentException('URI is not invalid.');
         }
 
-        $this->setStatusCode($status);
+        $with = clone $this;
 
-        return $second < 1
-            ? $this->addedHeader('Refresh', '0; url=' . $uri->__toString())
-            : $this->addedHeader('Location', $uri->__toString());
+        $with->setStatusCode($status);
+
+        return $second > 0
+            ? $with->addedHeader('Refresh',  $second . '; url=' . $uri->__toString())
+            : $with->addedHeader('Location', $uri->__toString());
     }
 
 }

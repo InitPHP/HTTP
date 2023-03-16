@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use InitPHP\HTTP\Message\Interfaces\UriInterface;
+use \InitPHP\HTTP\Message\Interfaces\UriInterface;
 use \InvalidArgumentException;
 
 use function parse_url;

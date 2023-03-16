@@ -17,8 +17,9 @@ namespace InitPHP\HTTP\Factory;
 
 use \RuntimeException;
 use \InvalidArgumentException;
-use \InitPHP\HTTP\{Request, Response};
-use \InitPHP\HTTP\Message\{ServerRequest,
+use \InitPHP\HTTP\Message\{Request,
+    Response,
+    ServerRequest,
     Stream,
     UploadedFile,
     Uri};

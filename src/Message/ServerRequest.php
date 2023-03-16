@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use InitPHP\HTTP\Message\Interfaces\ServerRequestInterface;
+use \InitPHP\HTTP\Message\Interfaces\ServerRequestInterface;
 use \InitPHP\HTTP\Message\Traits\{MessageTrait, RequestTrait};
 use \Psr\Http\Message\{UploadedFileInterface, UriInterface};
 

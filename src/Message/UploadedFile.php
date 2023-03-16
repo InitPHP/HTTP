@@ -17,8 +17,7 @@ namespace InitPHP\HTTP\Message;
 
 use \RuntimeException;
 use \InvalidArgumentException;
-use \Psr\Http\Message\{UploadedFileInterface,
-    StreamInterface};
+use \Psr\Http\Message\{UploadedFileInterface, StreamInterface};
 
 use const UPLOAD_ERR_OK;
 use const UPLOAD_ERR_INI_SIZE;

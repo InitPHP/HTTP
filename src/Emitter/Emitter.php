@@ -16,8 +16,7 @@ declare(strict_types=1);
 namespace InitPHP\HTTP\Emitter;
 
 use InitPHP\HTTP\Emitter\Exceptions\EmitBodyException;
-use \Psr\Http\Message\{ResponseInterface,
-    StreamInterface};
+use \Psr\Http\Message\{ResponseInterface, StreamInterface};
 
 use function assert;
 use function is_string;
