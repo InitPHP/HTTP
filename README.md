@@ -9,6 +9,7 @@ This library provides HTTP Message and HTTP Factory solution following PSR-7 and
 - PHP 7.4 or higher
 - PSR-7 HTTP Message Interfaces
 - PSR-17 HTTP Factories Interfaces
+- PSR-18 HTTP Client Interfaces
 
 ## Installation
 
@@ -18,19 +19,82 @@ composer require initphp/http
 
 ## Usage
 
-It adheres to the PSR-7 and PSR-17 standards and strictly implements these interfaces to a large extent.
+It adheres to the PSR-7, PSR-17, PSR-18 standards and strictly implements these interfaces to a large extent.
 
-### Emitter Usage
+### PSR-7 Emitter Usage
 
 ```php
-use \InitPHP\HTTP\{Response, Emitter, Stream};
+use \InitPHP\HTTP\Message\{Response, Stream};
+use \InitPHP\HTTP\Emitter\Emitter;
 
 
 $response = new Response(200, [], new Stream('Hello World', null), '1.1');
 
-$emitter = new Emitter;
+$emitter = new Emitter();
 $emitter->emit($response);
 ```
+
+or 
+
+```php
+use \InitPHP\HTTP\Facade\Factory;
+use \InitPHP\HTTP\Facade\Emitter;
+
+$response = Factory::createResponse(200);
+$response->getBody()->write('Hello World');
+
+Emitter::emit($response);
+```
+
+### PSR-17 Factory Usage
+
+```php
+use \InitPHP\HTTP\Factory\Factory;
+
+$httpFactory = new Factory();
+
+/** @var \Psr\Http\Message\RequestInterface $request */
+$request = $httpFactory->createRequest('GET', 'http://example.com');
+
+// ...
+```
+
+or
+
+```php
+use InitPHP\HTTP\Facade\Factory;
+
+/** @var \Psr\Http\Message\RequestInterface $request */
+$request = Factory::createRequest('GET', 'http://example.com');
+```
+
+### PSR-18 Client Usage
+
+```php
+use \InitPHP\HTTP\Message\Request;
+use \InitPHP\HTTP\Client\Client;
+
+$request = new Request('GET', 'http://example.com');
+
+$client = new Client();
+
+/** @var \Psr\Http\Message\ResponseInterface $response */
+$response = $client->sendRequest($request);
+```
+
+or
+
+```php
+use \InitPHP\HTTP\Facade\Factory;
+use \InitPHP\HTTP\Facade\Client;
+
+$request = Factory::createRequest('GET', 'http://example.com');
+
+/** @var \Psr\Http\Message\ResponseInterface $response */
+$response = Client::sendRequest($request);
+```
+
+
 
 #### A Small Difference For PSR-7 Stream
 
