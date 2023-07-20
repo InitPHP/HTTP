@@ -51,4 +51,14 @@ interface MessageInterface extends \Psr\Http\Message\MessageInterface
      */
     public function outHeader($name): self;
 
+    /**
+     * @return bool
+     */
+    public function isEmpty(): bool;
+
+    /**
+     * @return bool
+     */
+    public function isNotEmpty(): bool;
+
 }

@@ -445,6 +445,22 @@ class Stream implements StreamInterface
         return $data[$key] ?? null;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function isEmpty(): bool
+    {
+        return $this->getSize() < 1;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function isNotEmpty(): bool
+    {
+        return $this->getSize() > 0;
+    }
+
     protected function getUri()
     {
         if($this->uri !== FALSE){

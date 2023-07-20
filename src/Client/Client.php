@@ -15,9 +15,8 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Client;
 
-use InitPHP\HTTP\Message\Interfaces\StreamInterface;
 use \InitPHP\HTTP\Message\{Request, Stream, Response};
-use \Psr\Http\Message\{RequestInterface, ResponseInterface};
+use \Psr\Http\Message\{RequestInterface, ResponseInterface, StreamInterface};
 use \InitPHP\HTTP\Client\Exceptions\{ClientException, NetworkException, RequestException};
 
 use const CASE_LOWER;
@@ -243,7 +242,7 @@ class Client implements \Psr\Http\Client\ClientInterface
             $body = new Stream($body->saveHTML(), null);
         } else if ((class_exists('SimpleXMLElement')) && ($body instanceof \SimpleXMLElement)) {
             $body = new Stream($body->asXML(), null);
-        } else if (is_object($body)) {
+        } else if ((is_object($body)) && !($body instanceof StreamInterface)) {
             if (method_exists($body, '__toString')) {
                 $body = $body->__toString();
             } else if (method_exists($body, 'toArray')) {
