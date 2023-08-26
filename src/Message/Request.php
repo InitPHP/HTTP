@@ -117,7 +117,7 @@ class Request implements \InitPHP\HTTP\Message\Interfaces\RequestInterface
     public function merge(array ...$array): self
     {
         $this->_parameters = array_merge($this->_parameters, ...$array);
-        $this->_objParameters = (object)json_decode(json_encode($this->_parameters), false);
+        !empty($this->_parameters) && $this->_objParameters = (object)json_decode(json_encode($this->_parameters), false);
 
         return $this;
     }
