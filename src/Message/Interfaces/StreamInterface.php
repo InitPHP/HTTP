@@ -18,5 +18,14 @@ namespace InitPHP\HTTP\Message\Interfaces;
 
 interface StreamInterface extends \Psr\Http\Message\StreamInterface
 {
+    /**
+     * @return bool
+     */
+    public function isEmpty(): bool;
+
+    /**
+     * @return bool
+     */
+    public function isNotEmpty(): bool;
 
 }

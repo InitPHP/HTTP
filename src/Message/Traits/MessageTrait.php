@@ -221,6 +221,22 @@ trait MessageTrait
         return $this;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function isEmpty(): bool
+    {
+        return $this->getBody()->getSize() < 1;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function isNotEmpty(): bool
+    {
+        return $this->getBody()->getSize() > 0;
+    }
+
     protected function validateAndTrimHeader($header, $values): array
     {
         if(!is_string($header) || (bool)preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@", $header) === FALSE){

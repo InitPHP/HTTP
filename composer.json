@@ -6,7 +6,10 @@
     "autoload": {
         "psr-4": {
             "InitPHP\\HTTP\\": "src/"
-        }
+        },
+        "files": [
+            "src/Helpers.php"
+        ]
     },
     "authors": [
         {
