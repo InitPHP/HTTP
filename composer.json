@@ -1,6 +1,6 @@
 {
     "name": "initphp/http",
-    "description": "HTTP",
+    "description": "InitPHP HTTP — PSR-7 messages, PSR-17 factory, and PSR-18 client. As of 2.2 this package supersedes initphp/http-client, initphp/http-factory and initphp/curl.",
     "type": "library",
     "license": "MIT",
     "autoload": {
@@ -8,7 +8,8 @@
             "InitPHP\\HTTP\\": "src/"
         },
         "files": [
-            "src/Helpers.php"
+            "src/Helpers.php",
+            "src/aliases.php"
         ]
     },
     "authors": [
@@ -22,9 +23,15 @@
     "minimum-stability": "stable",
     "require": {
         "php": ">=7.4",
+        "ext-curl": "*",
         "ext-json": "*",
         "psr/http-message": "^1.0",
         "psr/http-factory": "^1.0",
         "psr/http-client": "^1.0"
+    },
+    "replace": {
+        "initphp/http-client": "*",
+        "initphp/http-factory": "*",
+        "initphp/curl": "*"
     }
 }

@@ -129,7 +129,14 @@ class Client implements \Psr\Http\Client\ClientInterface
             }
         }
 
-        $options = $this->prepareCurlOptions($request);
+        $response = [
+            'body'      => '',
+            'version'   => $request->getProtocolVersion(),
+            'status'    => 200,
+            'headers'   => [],
+        ];
+
+        $options = $this->prepareCurlOptions($request, $response);
         try {
             $curl = \curl_init();
             \curl_setopt_array($curl, $options);
@@ -149,11 +156,11 @@ class Client implements \Psr\Http\Client\ClientInterface
     }
 
 
-    private function prepareCurlOptions(RequestInterface $request): array
+    private function prepareCurlOptions(RequestInterface $request, array &$response): array
     {
         try {
             $url = $request->getUri()->__toString();
-            if (filter_var($url, FILTER_VALIDATE_URL)) {
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
                 throw new ClientException('URL address is not valid.');
             }
             $version = $request->getProtocolVersion();
@@ -199,13 +206,6 @@ class Client implements \Psr\Http\Client\ClientInterface
                     $options[\CURLOPT_HTTPHEADER][] = $name . ': ' . $value;
                 }
             }
-
-            $response = [
-                'body'      => '',
-                'version'   => $version,
-                'status'    => 200,
-                'headers'   => [],
-            ];
 
             $options[\CURLOPT_HEADERFUNCTION] = function ($ch, $data) use (&$response) {
                 $str = trim($data);
