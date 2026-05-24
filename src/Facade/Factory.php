@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -15,8 +14,8 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Facade;
 
-use InitPHP\HTTP\Facade\Interfaces\FacadebleInterface;
-use InitPHP\HTTP\Facade\Traits\Facadeble;
+use InitPHP\HTTP\Facade\Interfaces\FacadableInterface;
+use InitPHP\HTTP\Facade\Traits\Facadable;
 use \Psr\Http\Message\{RequestInterface,
     ResponseInterface,
     ServerRequestInterface,
@@ -25,6 +24,12 @@ use \Psr\Http\Message\{RequestInterface,
     UriInterface};
 
 /**
+ * Static facade over a lazily-constructed
+ * {@see \InitPHP\HTTP\Factory\Factory} singleton. Lets callers write
+ * `Factory::createResponse(200)` without manually instantiating the PSR-17
+ * factory bundle (RequestFactory, ResponseFactory, StreamFactory,
+ * UriFactory, UploadedFileFactory, ServerRequestFactory).
+ *
  * @mixin \InitPHP\HTTP\Factory\Factory
  * @method static RequestInterface createRequest(string $method, $uri)
  * @method static ResponseInterface createResponse(int $code = 200, string $reasonPhrase = '')
@@ -35,13 +40,19 @@ use \Psr\Http\Message\{RequestInterface,
  * @method static UploadedFileInterface createUploadedFile(StreamInterface $stream, int $size = null, int $error = \UPLOAD_ERR_OK, string $clientFilename = null, string $clientMediaType = null)
  * @method static UriInterface createUri(string $uri = '')
  */
-class Factory implements FacadebleInterface
+final class Factory implements FacadableInterface
 {
 
-    use Facadeble;
+    use Facadable;
 
     private static \InitPHP\HTTP\Factory\Factory $instance;
 
+    /**
+     * Return the shared {@see \InitPHP\HTTP\Factory\Factory} instance,
+     * constructing it on first call.
+     *
+     * @return object
+     */
     public static function getInstance(): object
     {
         if (!isset(self::$instance)) {

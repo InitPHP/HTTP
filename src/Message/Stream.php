@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -15,7 +14,7 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \InitPHP\HTTP\Message\Interfaces\StreamInterface;
+use \Psr\Http\Message\StreamInterface;
 use \Throwable;
 use \RuntimeException;
 use \InvalidArgumentException;
@@ -45,6 +44,13 @@ use function fseek;
 use function fread;
 use function clearstatcache;
 
+/**
+ * PSR-7 StreamInterface implementation supporting three backends in a
+ * single class: a real PHP resource handle (php://temp, files, sockets,
+ * php://memory) or a plain in-memory string when constructed with a null
+ * target. The string backend keeps small bodies allocation-free while
+ * still honouring the full seek/read/write contract.
+ */
 class Stream implements StreamInterface
 {
     /**
@@ -63,7 +69,7 @@ class Stream implements StreamInterface
 
     protected bool $writable = false;
 
-    /** @var string|false|null  false = aranıp bulunamadı, null = henüz aranmadı */
+    /** @var string|false|null  false = looked up and unavailable, null = not yet looked up */
     protected $uri = null;
 
     protected ?int $size = null;
@@ -110,24 +116,43 @@ class Stream implements StreamInterface
         ],
     ];
 
+    /**
+     * Build a stream from a string, resource, StreamInterface or null body.
+     *
+     * @param  null|string|resource|StreamInterface $body   Initial body contents.
+     * @param  string|null                          $target Backing store: "php://temp", "php://memory" or NULL for an in-memory string backend.
+     * @throws InvalidArgumentException When $target is invalid or $body cannot be coerced.
+     * @throws RuntimeException         When the underlying php:// stream cannot be opened.
+     */
     public function __construct($body = '', ?string $target = null)
     {
         $this->init($body, $target);
     }
 
     /**
-     * @inheritDoc
+     * Read the entire stream into a string. PSR-7 forbids __toString from
+     * raising exceptions: any error reading the underlying stream is
+     * swallowed and an empty string is returned, mirroring the behaviour
+     * of file_get_contents() failure modes.
+     *
+     * @return string
      */
-    public function __toString()
+    public function __toString(): string
     {
-        if($this->isSeekable()){
-            $this->seek(0);
+        try {
+            if ($this->isSeekable()) {
+                $this->seek(0);
+            }
+            return $this->getContents();
+        } catch (\Throwable $e) {
+            return '';
         }
-        return $this->getContents();
     }
 
     /**
-     * @inheritDoc
+     * Close the underlying handle (if any) when the stream goes out of scope.
+     *
+     * @return void
      */
     public function __destruct()
     {
@@ -135,9 +160,15 @@ class Stream implements StreamInterface
     }
 
     /**
-     * PSR-7 immutability: clone yapıldığında resource'u derinleştir; aksi halde
-     * iki Stream aynı resource handle'ını paylaşır, withBody dışı tüm withX
-     * çağrıları orijinal mesajın body'sini de değiştirir.
+     * Deep-clone the underlying resource so the original and the clone do
+     * not share a single handle. Without this, every PSR-7 `with*()` call
+     * would mutate the body of the original message because both Stream
+     * instances point at the same resource.
+     *
+     * String backends are exempt — PHP's copy-on-write already isolates
+     * them at the language level.
+     *
+     * @return void
      */
     public function __clone()
     {
@@ -146,7 +177,7 @@ class Stream implements StreamInterface
         }
         $this->uri = null;
         if (is_string($this->stream)) {
-            // String backend zaten PHP copy-on-write; ek iş gerekmiyor.
+            // String backend is already PHP copy-on-write; nothing to do.
             return;
         }
         if (!is_resource($this->stream)) {
@@ -170,7 +201,7 @@ class Stream implements StreamInterface
         if ($contents !== '') {
             fwrite($copy, $contents);
         }
-        // Orijinal stream'in pozisyonunu koru
+        // Preserve the original stream's cursor position.
         if (is_int($originalPosition)) {
             fseek($copy, $originalPosition);
         } else {
@@ -184,10 +215,14 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @param null|string|resource|StreamInterface $body
-     * @param string|null $target <p>["php://temp"|"php://memory"|NULL]</p>
+     * (Re)initialise the stream against a new body/target pair. Called by
+     * the constructor; can also be used to re-seat an existing instance.
+     *
+     * @param  null|string|resource|StreamInterface $body
+     * @param  string|null                          $target ["php://temp"|"php://memory"|NULL]
      * @return StreamInterface
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentException When $target is invalid, or $body cannot be coerced to a string for the in-memory backend.
+     * @throws RuntimeException         When the underlying php:// stream cannot be opened.
      */
     public function init($body = null, ?string $target = 'php://temp'): StreamInterface
     {
@@ -204,7 +239,7 @@ class Stream implements StreamInterface
             }
             $body = $body->getContents();
         }
-        // Resource'lar target'tan bağımsız her zaman kabul edilir
+        // Resources are always accepted regardless of $target.
         if(is_resource($body)){
             $this->stream = $body;
             $meta = stream_get_meta_data($this->stream);
@@ -245,7 +280,10 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Close the stream and release the underlying handle. Subsequent reads
+     * or writes will raise RuntimeException.
+     *
+     * @return void
      */
     public function close()
     {
@@ -263,7 +301,13 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Detach the underlying handle from this Stream and return it. The
+     * Stream is left in an unusable state; the string backend is
+     * materialised into a php://memory resource before being returned so
+     * the caller always receives a resource handle.
+     *
+     * @return resource|null
+     * @throws RuntimeException When the string backend cannot be materialised.
      */
     public function detach()
     {
@@ -277,11 +321,14 @@ class Stream implements StreamInterface
         $this->readable = false;
         $this->writable = false;
         $this->seekable = false;
-        return is_string($res) ? $this->str2resorce($res) : $res;
+        return is_string($res) ? $this->stringToResource($res) : $res;
     }
 
     /**
-     * @inheritDoc
+     * Return the body size in bytes, or null when the size is unknown
+     * (e.g. non-seekable resources without a usable fstat() entry).
+     *
+     * @return int|null
      */
     public function getSize(): ?int
     {
@@ -305,7 +352,10 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Return the current cursor position in the stream.
+     *
+     * @return int
+     * @throws RuntimeException When the stream is detached or ftell() fails.
      */
     public function tell(): int
     {
@@ -322,7 +372,10 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * True when the cursor is at end-of-stream. Returns false for detached
+     * streams so callers cannot accidentally treat detachment as EOF.
+     *
+     * @return bool
      */
     public function eof(): bool
     {
@@ -339,7 +392,9 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * True when the stream supports random-access seeking.
+     *
+     * @return bool
      */
     public function isSeekable(): bool
     {
@@ -347,7 +402,13 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Move the cursor to $offset using the supplied $whence (SEEK_SET,
+     * SEEK_CUR or SEEK_END).
+     *
+     * @param  int $offset
+     * @param  int $whence
+     * @return void
+     * @throws RuntimeException When the stream is detached, not seekable, or fseek() fails.
      */
     public function seek($offset, $whence = SEEK_SET)
     {
@@ -367,7 +428,10 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Move the cursor back to the start of the stream.
+     *
+     * @return void
+     * @throws RuntimeException When the stream is detached or not seekable.
      */
     public function rewind()
     {
@@ -375,7 +439,9 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * True when the stream supports being written to.
+     *
+     * @return bool
      */
     public function isWritable(): bool
     {
@@ -383,7 +449,15 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Write $string at the current cursor position and return the number of
+     * bytes written. The in-memory string backend mirrors fwrite() semantics:
+     * appending past EOF extends the buffer; writing in the middle overwrites
+     * the slice in place.
+     *
+     * @param  string $string
+     * @return int
+     * @throws RuntimeException         When the stream is detached, not writable, or the underlying fwrite() fails.
+     * @throws InvalidArgumentException When $string is not a string.
      */
     public function write($string): int
     {
@@ -396,23 +470,26 @@ class Stream implements StreamInterface
         if(!is_string($string)){
             throw new InvalidArgumentException('Only strings can be written to the stream.');
         }
-        if(is_string($this->stream)){
-            if($this->size === null){
+        if (is_string($this->stream)) {
+            if ($this->size === null) {
                 $this->size = strlen($this->stream);
             }
-            if($this->seek === 0){
-                $this->stream = $string . $this->stream;
-            }elseif($this->seek >= $this->size){
+            $written = strlen($string);
+            if ($this->seek >= $this->size) {
+                // Append past EOF; fseek-style POSIX semantics would zero-pad,
+                // but PSR-7 callers never rely on that and PHP's fwrite on a
+                // text stream simply extends — match that.
                 $this->stream .= $string;
-            }else{
-                $stream = $this->stream;
-                $this->stream = substr($stream, 0, $this->seek)
+            } else {
+                // Overwrite from the current position, exactly like fwrite()
+                // on a seekable real stream.
+                $this->stream = substr($this->stream, 0, $this->seek)
                     . $string
-                    . substr($stream, $this->seek);
+                    . substr($this->stream, $this->seek + $written);
             }
-            $size = strlen($string);
-            $this->size += $size;
-            return $size;
+            $this->seek += $written;
+            $this->size = strlen($this->stream);
+            return $written;
         }
         $this->size = null;
         if(($result = @fwrite($this->stream, $string)) === FALSE){
@@ -422,7 +499,9 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * True when the stream supports being read from.
+     *
+     * @return bool
      */
     public function isReadable(): bool
     {
@@ -430,7 +509,12 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Read up to $length bytes from the stream and advance the cursor by
+     * the number of bytes actually returned.
+     *
+     * @param  int $length
+     * @return string
+     * @throws RuntimeException When the stream is detached, not readable, or fread() fails.
      */
     public function read($length): string
     {
@@ -452,7 +536,11 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Read everything from the current cursor position to end-of-stream
+     * and return it as a string.
+     *
+     * @return string
+     * @throws RuntimeException When the stream is detached or stream_get_contents() fails.
      */
     public function getContents(): string
     {
@@ -469,7 +557,11 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Return stream metadata. With no key, returns the entire metadata
+     * array; with a key, returns that single entry or null when absent.
+     *
+     * @param  string|null $key
+     * @return mixed
      */
     public function getMetadata($key = null)
     {
@@ -492,21 +584,38 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @inheritDoc
+     * Returns true only when the underlying stream is known to contain zero
+     * bytes. A size of null (pipes, sockets, on-the-fly responses) is treated
+     * as "indeterminate" — both isEmpty() and isNotEmpty() return false in
+     * that case so callers can branch defensively.
+     *
+     * @return bool
      */
     public function isEmpty(): bool
     {
-        return $this->getSize() < 1;
+        $size = $this->getSize();
+        return $size !== null && $size < 1;
     }
 
     /**
-     * @inheritDoc
+     * Counterpart of {@see Stream::isEmpty()}: only returns true when the
+     * size is known and strictly positive.
+     *
+     * @return bool
      */
     public function isNotEmpty(): bool
     {
-        return $this->getSize() > 0;
+        $size = $this->getSize();
+        return $size !== null && $size > 0;
     }
 
+    /**
+     * Return the resource's URI (file path, php:// stream name, ...) when
+     * available, caching the result so getMetadata() is only consulted
+     * once per stream.
+     *
+     * @return string|null
+     */
     protected function getUri()
     {
         if($this->uri === null){
@@ -516,17 +625,45 @@ class Stream implements StreamInterface
     }
 
     /**
-     * @param string $string
+     * Materialise the in-memory string backend into a real php://memory
+     * resource handle when the caller asks to detach. The cursor of the new
+     * handle is preserved at the same offset as the in-memory cursor (the
+     * caller observes the stream they were already using, just as a resource).
+     *
+     * @param  string $string
      * @return resource
+     * @throws RuntimeException When php://memory cannot be opened.
      */
-    private function str2resorce(string $string)
+    private function stringToResource(string $string)
     {
-        $stream = fopen('php://memory', 'r+');
-        fwrite($stream, $string);
-        rewind($stream);
+        $stream = fopen('php://memory', 'r+b');
+        if ($stream === false) {
+            throw new RuntimeException('Unable to open php://memory for stream detach.');
+        }
+        if ($string !== '') {
+            fwrite($stream, $string);
+        }
+        $position = $this->seek;
+        if ($position < 0) {
+            $position = 0;
+        }
+        $length = strlen($string);
+        if ($position > $length) {
+            $position = $length;
+        }
+        fseek($stream, $position);
         return $stream;
     }
 
+    /**
+     * fseek()-compatible seek implementation for the in-memory string
+     * backend. Honours SEEK_SET / SEEK_CUR / SEEK_END and clamps the
+     * resulting cursor into the [0, size] range.
+     *
+     * @param  int $offset
+     * @param  int $whence
+     * @return void
+     */
     private function str_seek($offset, $whence = SEEK_SET)
     {
         if($this->size === null){

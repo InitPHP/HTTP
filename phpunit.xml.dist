@@ -7,6 +7,9 @@
          failOnWarning="false"
          cacheDirectory=".phpunit.cache">
     <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
         <testsuite name="PSR-7 Integration">
             <directory>tests/Psr7</directory>
         </testsuite>
@@ -20,6 +23,14 @@
             <directory>tests/Immutability</directory>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+        <exclude>
+            <file>src/Helpers.php</file>
+        </exclude>
+    </source>
     <php>
         <const name="URI_FACTORY" value="InitPHP\HTTP\Factory\Factory"/>
         <const name="STREAM_FACTORY" value="InitPHP\HTTP\Factory\Factory"/>

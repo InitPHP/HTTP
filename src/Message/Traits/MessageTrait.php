@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -28,6 +27,12 @@ use function preg_match;
 use function strtolower;
 use function trim;
 
+/**
+ * Shared PSR-7 MessageInterface plumbing reused by Request, Response and
+ * ServerRequest. Owns the protocol version, the case-insensitive header bag
+ * and the body Stream, and ships both immutable PSR-7 `with*()` operations
+ * and in-place `set*()` mutators used internally during construction.
+ */
 trait MessageTrait
 {
 
@@ -40,7 +45,9 @@ trait MessageTrait
     protected StreamInterface $stream;
 
     /**
-     * @inheritDoc
+     * Return the HTTP protocol version (e.g. "1.1", "2.0").
+     *
+     * @return string
      */
     public function getProtocolVersion(): string
     {
@@ -48,7 +55,11 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Replace the protocol version (in-place). No-ops when the value is
+     * already current to avoid spurious mutations.
+     *
+     * @param  string $version
+     * @return $this
      */
     public function setProtocolVersion(string $version): self
     {
@@ -61,7 +72,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the message with the protocol version replaced.
+     *
+     * @param  string $version
+     * @return static
      */
     public function withProtocolVersion($version): self
     {
@@ -69,7 +83,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return all headers as an associative array of name => list-of-values.
+     * Names are returned in the original case supplied by the caller.
+     *
+     * @return array<string,string[]>
      */
     public function getHeaders(): array
     {
@@ -77,7 +94,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * True when a header with the given (case-insensitive) name exists.
+     *
+     * @param  string $name
+     * @return bool
      */
     public function hasHeader($name): bool
     {
@@ -85,7 +105,11 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return all values for the given header (case-insensitive lookup), or
+     * an empty array when the header is not present.
+     *
+     * @param  string $name
+     * @return string[]
      */
     public function getHeader($name)
     {
@@ -95,7 +119,11 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return the header values joined by ", " — the canonical "header line"
+     * representation per RFC 7230.
+     *
+     * @param  string $name
+     * @return string
      */
     public function getHeaderLine($name): string
     {
@@ -103,7 +131,14 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Replace (or create) a header (in-place). Existing values for the same
+     * name are dropped; the supplied value(s) are validated against RFC 7230
+     * before being stored.
+     *
+     * @param  string          $name
+     * @param  string|string[] $value
+     * @return $this
+     * @throws \InvalidArgumentException When the header name or any value is invalid.
      */
     public function setHeader($name, $value): self
     {
@@ -116,7 +151,12 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the message with the given header replaced.
+     *
+     * @param  string          $name
+     * @param  string|string[] $value
+     * @return static
+     * @throws \InvalidArgumentException When the header name or any value is invalid.
      */
     public function withHeader($name, $value): self
     {
@@ -124,7 +164,13 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Append the value(s) to an existing header (in-place), preserving any
+     * already-stored values. Creates the header when absent.
+     *
+     * @param  string          $name
+     * @param  string|string[] $value
+     * @return $this
+     * @throws \InvalidArgumentException When the header name is empty or values are invalid.
      */
     public function addedHeader($name, $value): self
     {
@@ -137,7 +183,13 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the message with the value(s) appended to the
+     * existing header.
+     *
+     * @param  string          $name
+     * @param  string|string[] $value
+     * @return static
+     * @throws \InvalidArgumentException When the header name is empty or values are invalid.
      */
     public function withAddedHeader($name, $value): self
     {
@@ -145,7 +197,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Remove a header (in-place). No-op when the header does not exist.
+     *
+     * @param  string $name
+     * @return $this
      */
     public function outHeader($name): self
     {
@@ -161,7 +216,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the message without the given header.
+     *
+     * @param  string $name
+     * @return static
      */
     public function withoutHeader($name): self
     {
@@ -169,7 +227,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return the message body as a PSR-7 StreamInterface. A fresh, empty
+     * stream is created on demand if no body has been assigned yet.
+     *
+     * @return StreamInterface
      */
     public function getBody(): StreamInterface
     {
@@ -180,7 +241,11 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Replace the message body (in-place). Assigning the same stream twice
+     * short-circuits to avoid trivial mutations.
+     *
+     * @param  StreamInterface $body
+     * @return $this
      */
     public function setBody(StreamInterface $body): self
     {
@@ -193,7 +258,10 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the message with the body replaced.
+     *
+     * @param  StreamInterface $body
+     * @return static
      */
     public function withBody(StreamInterface $body): self
     {
@@ -201,7 +269,13 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * Bulk-load headers from an associative array, validating every value
+     * and folding additional values into existing headers (case-insensitive
+     * key collision).
+     *
+     * @param  array<string,string|string[]> $headers
+     * @return $this
+     * @throws \InvalidArgumentException When any header name or value is invalid.
      */
     public function setHeaders(array $headers): self
     {
@@ -222,21 +296,42 @@ trait MessageTrait
     }
 
     /**
-     * @inheritDoc
+     * True when the body is known to contain zero bytes. A size of null
+     * (pipes, sockets, on-the-fly responses) is treated as indeterminate —
+     * both {@see MessageTrait::isEmpty()} and
+     * {@see MessageTrait::isNotEmpty()} return false in that case so
+     * callers can branch defensively.
+     *
+     * @return bool
      */
     public function isEmpty(): bool
     {
-        return $this->getBody()->getSize() < 1;
+        $size = $this->getBody()->getSize();
+        return $size !== null && $size < 1;
     }
 
     /**
-     * @inheritDoc
+     * Counterpart of {@see MessageTrait::isEmpty()}: only true when the
+     * body size is known and strictly positive.
+     *
+     * @return bool
      */
     public function isNotEmpty(): bool
     {
-        return $this->getBody()->getSize() > 0;
+        $size = $this->getBody()->getSize();
+        return $size !== null && $size > 0;
     }
 
+    /**
+     * Validate the header name against RFC 7230 token rules and coerce the
+     * value(s) into a list of trimmed strings, rejecting anything that
+     * contains control characters or non-tchar bytes.
+     *
+     * @param  string                       $header
+     * @param  string|int|float|array<int,string|int|float> $values
+     * @return string[]
+     * @throws \InvalidArgumentException When the name or any value violates RFC 7230.
+     */
     protected function validateAndTrimHeader($header, $values): array
     {
         if(!is_string($header) || (bool)preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@", $header) === FALSE){

@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -40,11 +39,23 @@ use function in_array;
 use function fopen;
 use function error_get_last;
 
+/**
+ * PSR-17 factory bundle. A single class implements every PSR-17 factory
+ * interface (RequestFactory, ResponseFactory, ServerRequestFactory,
+ * StreamFactory, UploadedFileFactory, UriFactory), so applications wiring
+ * up DI containers only need to register this one type to satisfy all
+ * six bindings.
+ */
 class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedFileFactoryInterface, StreamFactoryInterface, ServerRequestFactoryInterface, ResponseFactoryInterface
 {
 
     /**
-     * @inheritDoc
+     * Build a fresh PSR-7 Request.
+     *
+     * @param  string              $method
+     * @param  string|UriInterface $uri
+     * @return RequestInterface
+     * @throws InvalidArgumentException When $uri is a malformed URI string.
      */
     public function createRequest(string $method, $uri): RequestInterface
     {
@@ -52,7 +63,13 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Build a fresh PSR-7 Response. An empty $reasonPhrase resolves to
+     * the IANA-registered phrase for $code at the Response level.
+     *
+     * @param  int    $code
+     * @param  string $reasonPhrase
+     * @return ResponseInterface
+     * @throws InvalidArgumentException When $code or the default HTTP version is invalid.
      */
     public function createResponse(int $code = 200, string $reasonPhrase = ''): ResponseInterface
     {
@@ -60,7 +77,15 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Build a fresh PSR-7 ServerRequest with the supplied $_SERVER-style
+     * snapshot. To bootstrap from real superglobals call
+     * {@see \InitPHP\HTTP\Message\ServerRequest::createFromGlobals()} instead.
+     *
+     * @param  string              $method
+     * @param  string|UriInterface $uri
+     * @param  array<string,mixed> $serverParams
+     * @return ServerRequestInterface
+     * @throws InvalidArgumentException When $uri is a malformed URI string.
      */
     public function createServerRequest(string $method, $uri, array $serverParams = []): ServerRequestInterface
     {
@@ -68,7 +93,11 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Build a php://temp-backed Stream pre-loaded with $content.
+     *
+     * @param  string $content
+     * @return StreamInterface
+     * @throws RuntimeException When php://temp cannot be opened.
      */
     public function createStream(string $content = ''): StreamInterface
     {
@@ -76,7 +105,13 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Open $filename in $mode and wrap the resulting handle in a Stream.
+     *
+     * @param  string $filename
+     * @param  string $mode     One of the fopen() mode prefixes (r, w, a, x, c).
+     * @return StreamInterface
+     * @throws RuntimeException         When $filename is empty or cannot be opened.
+     * @throws InvalidArgumentException When $mode is not a recognised fopen() mode.
      */
     public function createStreamFromFile(string $filename, string $mode = 'r'): StreamInterface
     {
@@ -95,7 +130,11 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Wrap an existing PHP resource handle (or pass through a Stream)
+     * in a php://temp-backed Stream.
+     *
+     * @param  resource|StreamInterface $resource
+     * @return StreamInterface
      */
     public function createStreamFromResource($resource): StreamInterface
     {
@@ -107,7 +146,16 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Build a PSR-7 UploadedFile from a stream. When $size is null the
+     * factory tries to derive it from the stream itself before construction.
+     *
+     * @param  StreamInterface $stream
+     * @param  int|null        $size
+     * @param  int             $error           One of the UPLOAD_ERR_* constants.
+     * @param  string|null     $clientFilename
+     * @param  string|null     $clientMediaType
+     * @return UploadedFileInterface
+     * @throws InvalidArgumentException When the stream cannot be wrapped (e.g. unusable handle).
      */
     public function createUploadedFile(StreamInterface $stream, int $size = null, int $error = \UPLOAD_ERR_OK, string $clientFilename = null, string $clientMediaType = null): UploadedFileInterface
     {
@@ -119,7 +167,11 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
     }
 
     /**
-     * @inheritDoc
+     * Build a PSR-7 Uri from a string.
+     *
+     * @param  string $uri
+     * @return UriInterface
+     * @throws InvalidArgumentException When parse_url() cannot interpret $uri.
      */
     public function createUri(string $uri = ''): UriInterface
     {

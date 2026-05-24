@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, 2.x]
+  pull_request:
+    branches: [main, 2.x]
+
+jobs:
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php }} / ${{ matrix.dependency-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        dependency-version: [prefer-stable]
+        include:
+          - php: '7.4'
+            dependency-version: prefer-lowest
+          - php: '8.4'
+            dependency-version: prefer-stable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: json, curl, mbstring
+          coverage: none
+          tools: composer:v2
+
+      - name: Resolve PHPUnit constraint
+        run: |
+          if php -r 'exit((int) version_compare(PHP_VERSION, "8.1.0", "<"));'; then
+            composer require --dev --no-update --no-interaction "phpunit/phpunit:^9.6"
+          else
+            composer require --dev --no-update --no-interaction "phpunit/phpunit:^10.5"
+          fi
+
+      - name: Install dependencies
+        run: composer update --${{ matrix.dependency-version }} --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --testdox

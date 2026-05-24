@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -17,7 +16,7 @@ namespace InitPHP\HTTP\Message;
 
 use \InvalidArgumentException;
 use \InitPHP\HTTP\Message\Traits\MessageTrait;
-use \InitPHP\HTTP\Message\Interfaces\{ResponseInterface, StreamInterface};
+use \Psr\Http\Message\{ResponseInterface, StreamInterface};
 
 use function in_array;
 use function is_numeric;
@@ -26,6 +25,14 @@ use function is_scalar;
 use function is_string;
 use function json_encode;
 
+/**
+ * PSR-7 ResponseInterface implementation backed by {@see MessageTrait}.
+ * Carries the response status code, reason phrase, headers and body;
+ * immutability of `with*()` returns is guaranteed by the deep clone in
+ * {@see Response::__clone()}. Ships with two convenience producers,
+ * {@see Response::json()} and {@see Response::redirect()}, on top of the
+ * standard PSR-7 surface.
+ */
 class Response implements ResponseInterface
 {
 
@@ -85,7 +92,7 @@ class Response implements ResponseInterface
         429 => 'Too Many Requests',
         431 => 'Request Header Fields Too Large',
         451 => 'Unavailable For Legal Reasons',
-        500 => 'Internal ServerRequest Error',
+        500 => 'Internal Server Error',
         501 => 'Not Implemented',
         502 => 'Bad Gateway',
         503 => 'Service Unavailable',
@@ -103,15 +110,12 @@ class Response implements ResponseInterface
 
 
     /**
-     * @param int $status
-     * @param array $headers
-     * @param StreamInterface|string|null|resource $body
-     * @param string $version
-     * @param string|null $reason
-     */
-    /**
-     * PSR-7 immutability: clone'da body'i de derinleştir ki
-     * `$cloned->getBody()->write(...)` orijinali bozmasın.
+     * Deep-clone the body Stream so callers using `with*()` cannot mutate
+     * the original response via `$cloned->getBody()->write(...)`. Without
+     * this the default shallow clone leaves both instances pointing at the
+     * same underlying resource handle.
+     *
+     * @return void
      */
     public function __clone()
     {
@@ -120,10 +124,22 @@ class Response implements ResponseInterface
         }
     }
 
+    /**
+     * Build a new response.
+     *
+     * @param  int                                          $status  HTTP status code (100..599).
+     * @param  array<string,string|string[]>                $headers Header name => value(s).
+     * @param  StreamInterface|string|resource|null         $body    Response body in any form accepted by {@see Stream}.
+     * @param  string                                       $version HTTP protocol version; one of "1.0", "1.1", "2", "2.0", "3", "3.0".
+     * @param  string|null                                  $reason  Reason phrase; defaults to the IANA phrase for $status when null.
+     * @throws InvalidArgumentException When $version is not one of the supported HTTP version strings.
+     */
     public function __construct(int $status = 200, array $headers = [], $body = null, string $version = '1.1', ?string $reason = null)
     {
-        if(!in_array($version, ['1.0', '1.1', '2.0'], true)){
-            throw new \InvalidArgumentException('Supported HTTP versions are; "1.0", "1.1" or "2.0"');
+        if (!in_array($version, ['1.0', '1.1', '2', '2.0', '3', '3.0'], true)) {
+            throw new \InvalidArgumentException(
+                'Supported HTTP versions are: "1.0", "1.1", "2", "2.0", "3" or "3.0".'
+            );
         }
         $this->setStream($body);
         $this->statusCode = $status;
@@ -137,7 +153,12 @@ class Response implements ResponseInterface
     }
 
     /**
-     * @inheritDoc
+     * Assign the body from a flexible input shape: StreamInterface and
+     * resource values are wrapped/stored verbatim; scalar values are
+     * stringified through a fresh {@see Stream}; null is a no-op.
+     *
+     * @param  StreamInterface|resource|scalar|null $body
+     * @return $this
      */
     public function setStream($body): self
     {
@@ -160,7 +181,9 @@ class Response implements ResponseInterface
     }
 
     /**
-     * @inheritDoc
+     * Return the HTTP status code.
+     *
+     * @return int
      */
     public function getStatusCode(): int
     {
@@ -168,7 +191,14 @@ class Response implements ResponseInterface
     }
 
     /**
-     * @inheritDoc
+     * Replace the status code (and optionally the reason phrase) in-place.
+     * When $reasonPhrase is empty and an IANA phrase is known for $code,
+     * the IANA phrase is used.
+     *
+     * @param  int    $code         Status code in the range 100..599.
+     * @param  string $reasonPhrase Optional reason phrase override.
+     * @return $this
+     * @throws InvalidArgumentException When $code is outside the 100..599 range.
      */
     public function setStatusCode(int $code, string $reasonPhrase = ''): self
     {
@@ -189,7 +219,13 @@ class Response implements ResponseInterface
     }
 
     /**
-     * @inheritDoc
+     * Return a clone of the response with the status code (and optional
+     * reason phrase) replaced.
+     *
+     * @param  int    $code
+     * @param  string $reasonPhrase
+     * @return static
+     * @throws InvalidArgumentException When $code is outside the 100..599 range.
      */
     public function withStatus($code, $reasonPhrase = ''): self
     {
@@ -197,20 +233,54 @@ class Response implements ResponseInterface
     }
 
     /**
-     * @inheritDoc
+     * Return the reason phrase associated with the current status code.
+     *
+     * @return string
      */
     public function getReasonPhrase(): string
     {
         return $this->reasonPhrase;
     }
 
-    public function json(array $data = [], int $status = 200): self
+    /**
+     * Return a JSON-encoded copy of this response with the appropriate
+     * Content-Type and status. Encoding errors raise InvalidArgumentException
+     * instead of silently producing a non-JSON body.
+     *
+     * @param  array<string,mixed>|list<mixed> $data
+     * @param  int                             $status HTTP status code for the new response.
+     * @param  int                             $flags  Additional json_encode() flags OR'd onto JSON_THROW_ON_ERROR.
+     * @return static
+     * @throws InvalidArgumentException When $data cannot be encoded as JSON, or $status is out of range.
+     */
+    public function json(array $data = [], int $status = 200, int $flags = 0): self
     {
-        return (clone $this)->setHeader('Content-Type', 'application/json')
-            ->setBody(new Stream(json_encode($data), null))
+        try {
+            $encoded = json_encode($data, JSON_THROW_ON_ERROR | $flags);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException('Cannot encode response payload as JSON: ' . $e->getMessage(), 0, $e);
+        }
+
+        return (clone $this)
+            ->setHeader('Content-Type', 'application/json; charset=utf-8')
+            ->setBody(new Stream($encoded, null))
             ->setStatusCode($status);
     }
 
+    /**
+     * Return a redirect copy of this response.
+     *
+     * The Location header is always set so non-browser clients (crawlers,
+     * HTTP libraries, monitoring) can follow the redirect; the Refresh
+     * header is added on top when a non-zero $second is supplied so
+     * browsers honour the delay.
+     *
+     * @param  string|\Psr\Http\Message\UriInterface $uri    Target location, as a string or PSR-7 URI.
+     * @param  int                                   $status HTTP status code (typically 301/302/303/307/308).
+     * @param  int                                   $second Delay in seconds before browsers follow; 0 omits the Refresh header.
+     * @return static
+     * @throws InvalidArgumentException When $uri is not a string or UriInterface, or $status is out of range.
+     */
     public function redirect($uri, int $status = 302, int $second = 0): self
     {
         if (is_string($uri)) {
@@ -220,13 +290,16 @@ class Response implements ResponseInterface
             throw new InvalidArgumentException('URI is not valid.');
         }
 
-        $with = clone $this;
+        $location = (string) $uri;
+        $with = (clone $this)
+            ->setStatusCode($status)
+            ->setHeader('Location', $location);
 
-        $with->setStatusCode($status);
+        if ($second > 0) {
+            $with->setHeader('Refresh', $second . '; url=' . $location);
+        }
 
-        return $second > 0
-            ? $with->setHeader('Refresh',  $second . '; url=' . $uri->__toString())
-            : $with->setHeader('Location', $uri->__toString());
+        return $with;
     }
 
 }
