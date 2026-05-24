@@ -26,6 +26,9 @@ use PHPUnit\Framework\TestCase;
  * test does not depend on headers_sent() at all (just ob_get_length()),
  * so it provides the more portable coverage. The header-side test is
  * gated on platform behaviour and skipped when the trigger doesn't fire.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 final class EmitterStrictModeTest extends TestCase
 {

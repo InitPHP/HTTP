@@ -16,6 +16,9 @@ use PHPUnit\Framework\TestCase;
  *
  * Both paths must emit the same bytes; the chunked path additionally
  * rewinds the stream first so callers don't have to.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 final class EmitterBodyTest extends TestCase
 {

@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main, 2.x]
+    branches: [main, 2.x, 3.x]
   pull_request:
-    branches: [main, 2.x]
+    branches: [main, 2.x, 3.x]
 
 jobs:
   phpunit:
@@ -18,8 +18,6 @@ jobs:
         include:
           - php: '7.4'
             dependency-version: prefer-lowest
-          - php: '8.4'
-            dependency-version: prefer-stable
 
     steps:
       - name: Checkout
@@ -33,14 +31,9 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Resolve PHPUnit constraint
-        run: |
-          if php -r 'exit((int) version_compare(PHP_VERSION, "8.1.0", "<"));'; then
-            composer require --dev --no-update --no-interaction "phpunit/phpunit:^9.6"
-          else
-            composer require --dev --no-update --no-interaction "phpunit/phpunit:^10.5"
-          fi
-
+      # Composer's solver picks PHPUnit 9.x and http-factory-tests 1.x on
+      # PHP < 8.1, and 10.x / 2.x on PHP >= 8.1, based on the wide ranges in
+      # composer.json. No manual narrowing required.
       - name: Install dependencies
         run: composer update --${{ matrix.dependency-version }} --no-interaction --no-progress --prefer-dist
 

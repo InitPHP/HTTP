@@ -140,6 +140,23 @@ PSR-7's hard requirement; the old implementation propagated `RuntimeException` f
 
 The `target=null` (pure in-memory string) backend used to *prepend* at position 0 and never advance the cursor. v3 overwrites from the current position and advances `tell()` correctly. If you wrote code that relied on the broken prepend behaviour, swap to `Stream::__construct($newPrefix . $oldBody, null)`.
 
+### 15. Native return types added for PSR-7 v2 covariance
+
+Six methods gained explicit language-level return types to satisfy the tightened `psr/http-message: ^2.0` contract:
+
+| Method                                       | Added return type   |
+|----------------------------------------------|---------------------|
+| `Stream::close()`                            | `: void`            |
+| `Stream::seek($offset, $whence = SEEK_SET)` | `: void`            |
+| `Stream::rewind()`                           | `: void`            |
+| `MessageTrait::getHeader($name)`             | `: array`           |
+| `UploadedFile::getStream()`                  | `: StreamInterface` |
+| `UploadedFile::moveTo($targetPath)`          | `: void`            |
+
+Existing PHPDoc `@return` lines already documented these types — only the runtime signature changed. **No call-site code needs to change.**
+
+If you **extended** any of these classes and **overrode** one of those methods, your override's signature must now match the new return type (or stay untyped — PHP allows that). An override declaring a different return type will fail at class load with a covariance error.
+
 ---
 
 ## Things that are NOT breaking

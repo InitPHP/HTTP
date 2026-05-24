@@ -17,6 +17,9 @@ use PHPUnit\Framework\TestCase;
  *   - emit exactly (last - first + 1) bytes
  *
  * The parseHeaderContentRange() / emitBodyRange() pair drives this.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 final class EmitterContentRangeTest extends TestCase
 {

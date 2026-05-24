@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Packagist metadata enrichment (description, keywords, homepage, support links).
 - Composer scripts: `composer test`, `composer test:coverage`, `composer phpstan`, `composer ci`.
 - EditorConfig, CHANGELOG, contributor-friendly docblocks across `src/`.
+- `http-interop/http-factory-tests` dev-dep widened to `^1.1 || ^2.0` so the CI matrix can install the v1 line on PHP 7.4 / 8.0 (the v2 line requires PHP 8.1+).
 
 ### Changed (breaking)
 
@@ -40,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`Stream::str2resorce()` renamed** to `Stream::stringToResource()` (private). Materialised detach handle now preserves cursor position.
 - **`RequestTrait::updateHostFormUri()` renamed** to `updateHostFromUri()`.
 - **HTTP version whitelist widened** to accept `2`, `2.0`, `3`, `3.0` (alongside `1.0` and `1.1`).
+- **Native return types added for PSR-7 v2 covariance** on six methods:
+  `Stream::close(): void`, `Stream::seek(...): void`, `Stream::rewind(): void`,
+  `MessageTrait::getHeader($name): array`,
+  `UploadedFile::getStream(): StreamInterface`, `UploadedFile::moveTo(...): void`.
+  No call-site change is required (the existing `@return` PHPDoc lines
+  already documented these types), but subclass overrides must match the
+  new signatures or stay untyped.
 
 ### Fixed
 

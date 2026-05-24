@@ -111,7 +111,7 @@ trait MessageTrait
      * @param  string $name
      * @return string[]
      */
-    public function getHeader($name)
+    public function getHeader($name): array
     {
         $lowercase = strtolower($name);
         $name = $this->headerNames[$lowercase] ?? $name;

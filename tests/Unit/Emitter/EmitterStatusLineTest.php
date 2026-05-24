@@ -22,6 +22,14 @@ use PHPUnit\Framework\TestCase;
  * status line, so we keep the assertions on the public Response API and
  * rely on the EmitterStrictModeTest @runInSeparateProcess tests to
  * exercise the SAPI integration end of the contract.
+ *
+ * Tests are isolated per process because PHPUnit 9's text result printer
+ * writes progress dots directly to STDOUT before each test runs, which
+ * flips headers_sent() to true and breaks any header() call the emitter
+ * would otherwise attempt.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 final class EmitterStatusLineTest extends TestCase
 {

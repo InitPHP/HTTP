@@ -11,7 +11,11 @@ Optional but recommended:
 ```bash
 composer require --dev phpunit/phpunit "^9.6 || ^10.5"
 composer require --dev phpstan/phpstan "^1.10"
+composer require --dev http-interop/http-factory-tests "^1.1 || ^2.0"
+composer require --dev php-http/psr7-integration-tests "^1.3"
 ```
+
+The split `^1.1 || ^2.0` constraint on `http-interop/http-factory-tests` lets Composer pick v1 on PHP 7.4 / 8.0 and v2 on PHP 8.1+ automatically; the v2 line requires PHP 8.1+ and PHPUnit 10.
 
 ## A complete round-trip in 12 lines
 

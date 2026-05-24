@@ -285,7 +285,7 @@ class Stream implements StreamInterface
      *
      * @return void
      */
-    public function close()
+    public function close(): void
     {
         if(isset($this->stream)){
             if(is_resource($this->stream)){
@@ -410,7 +410,7 @@ class Stream implements StreamInterface
      * @return void
      * @throws RuntimeException When the stream is detached, not seekable, or fseek() fails.
      */
-    public function seek($offset, $whence = SEEK_SET)
+    public function seek($offset, $whence = SEEK_SET): void
     {
         if(!isset($this->stream)){
             throw new RuntimeException('Stream is detached');
@@ -433,7 +433,7 @@ class Stream implements StreamInterface
      * @return void
      * @throws RuntimeException When the stream is detached or not seekable.
      */
-    public function rewind()
+    public function rewind(): void
     {
         $this->seek(0);
     }

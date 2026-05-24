@@ -136,7 +136,7 @@ class UploadedFile implements UploadedFileInterface
      * @return StreamInterface
      * @throws RuntimeException When the upload errored, was already moved, or the tmp file cannot be opened.
      */
-    public function getStream()
+    public function getStream(): StreamInterface
     {
         $this->throwHasErrorOrMoved();
         if($this->stream instanceof StreamInterface){
@@ -159,7 +159,7 @@ class UploadedFile implements UploadedFileInterface
      * @throws InvalidArgumentException When $targetPath is empty or not a string.
      * @throws RuntimeException         When the upload errored, was already moved, or the move/copy fails.
      */
-    public function moveTo($targetPath)
+    public function moveTo($targetPath): void
     {
         $this->throwHasErrorOrMoved();
         if(!is_string($targetPath) || $targetPath === ''){

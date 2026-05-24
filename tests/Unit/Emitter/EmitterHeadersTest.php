@@ -16,6 +16,9 @@ use PHPUnit\Framework\TestCase;
  * As with the status line, CLI cannot intercept header() calls. We test
  * the *call path* by emitting and asserting the body comes out intact —
  * any exception from the header() chain would surface here.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
 final class EmitterHeadersTest extends TestCase
 {
