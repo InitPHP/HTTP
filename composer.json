@@ -1,8 +1,57 @@
 {
     "name": "initphp/http",
-    "description": "HTTP",
+    "description": "Standards-compliant PSR-7 / PSR-17 / PSR-18 HTTP message, factory, client and response emitter implementation for PHP 7.4+.",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "http",
+        "psr-7",
+        "psr-17",
+        "psr-18",
+        "http-message",
+        "http-factory",
+        "http-client",
+        "psr-7-message",
+        "psr-7-factory",
+        "psr-7-client",
+        "emitter",
+        "request",
+        "response",
+        "stream",
+        "uri",
+        "uploaded-file",
+        "curl"
+    ],
+    "homepage": "https://github.com/InitPHP/HTTP",
+    "support": {
+        "issues": "https://github.com/InitPHP/HTTP/issues",
+        "source": "https://github.com/InitPHP/HTTP"
+    },
+    "authors": [
+        {
+            "name": "Muhammet ŞAFAK",
+            "email": "info@muhammetsafak.com.tr",
+            "role": "Developer",
+            "homepage": "https://www.muhammetsafak.com.tr"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.0 || ^2.0"
+    },
+    "require-dev": {
+        "ext-curl": "*",
+        "http-interop/http-factory-tests": "^1.1 || ^2.0",
+        "php-http/psr7-integration-tests": "^1.3",
+        "phpstan/phpstan": "^1.10",
+        "phpunit/phpunit": "^9.6 || ^10.5"
+    },
+    "suggest": {
+        "ext-curl": "Required by InitPHP\\HTTP\\Client\\Client (PSR-18) for outbound HTTP requests."
+    },
     "autoload": {
         "psr-4": {
             "InitPHP\\HTTP\\": "src/"
@@ -17,27 +66,23 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-text --coverage-html=build/coverage",
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "ci": [
+            "@phpstan",
+            "@test"
+        ]
     },
-    "authors": [
-        {
-            "name": "Muhammet ŞAFAK",
-            "email": "info@muhammetsafak.com.tr",
-            "role": "Developer",
-            "homepage": "https://www.muhammetsafak.com.tr"
-        }
-    ],
+    "scripts-descriptions": {
+        "test": "Run the PHPUnit test suite.",
+        "test:coverage": "Run the PHPUnit test suite with HTML coverage report.",
+        "phpstan": "Run PHPStan static analysis.",
+        "ci": "Run the full CI gate (PHPStan + PHPUnit)."
+    },
+    "config": {
+        "sort-packages": true
+    },
     "minimum-stability": "stable",
-    "require": {
-        "php": ">=7.4",
-        "ext-json": "*",
-        "psr/http-message": "^1.0",
-        "psr/http-factory": "^1.0",
-        "psr/http-client": "^1.0"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^10.5",
-        "php-http/psr7-integration-tests": "^1.3",
-        "http-interop/http-factory-tests": "^2.2"
-    }
+    "prefer-stable": true
 }

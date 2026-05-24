@@ -1,0 +1,26 @@
+parameters:
+    level: 5
+    phpVersion: 70400
+    paths:
+        - src
+    excludePaths:
+        - src/Helpers.php
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Stream::$stream is typed as resource|string but uses unset()/isset() for
+        # detach semantics. Tracked for resolution in a future pass.
+        - '#Property InitPHP\\HTTP\\Message\\Stream::\$stream .* in (isset|empty)\(\) is not nullable\.#'
+        # Trait/concrete return type alignment with PSR-7 static<> covariance.
+        # The shape `return (clone $this)->setX(...)` returns the concrete
+        # class, which is the static type at runtime but PHPStan cannot prove
+        # it through the trait boundary. Suppressing across the message set.
+        - '#Method InitPHP\\HTTP\\Message\\(Request|Response|ServerRequest|Uri)::with[A-Za-z]+\(\) should return static\(.*\) but returns InitPHP\\HTTP\\Message\\.*\.#'
+        # Same covariance: Response::json() returns clone $this -> Response.
+        - '#Method InitPHP\\HTTP\\Message\\Response::json\(\) should return \$this\(InitPHP\\HTTP\\Message\\Response\) but returns InitPHP\\HTTP\\Message\\Response\.#'
+        # Request::__set has a return statement that PHP discards; legacy magic-method
+        # signature. Cleaned up when _parameters bag is removed in v3.
+        - '#Method InitPHP\\HTTP\\Message\\Request::__set\(\) with return type void returns mixed but should not return anything\.#'
+        # PHP 7.4 still allows ?? on superglobals; suppress noise until createFromGlobals
+        # is moved to ServerRequest with explicit ServerRequestFactory entry.
+        - '#Variable \$_(GET|POST|SERVER|COOKIE|FILES|ENV) on left side of \?\? always exists and is not nullable\.#'

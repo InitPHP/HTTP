@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, 2.x, 3.x]
+  pull_request:
+    branches: [main, 2.x, 3.x]
+
+jobs:
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php }} / ${{ matrix.dependency-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        dependency-version: [prefer-stable]
+        include:
+          - php: '7.4'
+            dependency-version: prefer-lowest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: json, curl, mbstring
+          coverage: none
+          tools: composer:v2
+
+      # Composer's solver picks PHPUnit 9.x and http-factory-tests 1.x on
+      # PHP < 8.1, and 10.x / 2.x on PHP >= 8.1, based on the wide ranges in
+      # composer.json. No manual narrowing required.
+      - name: Install dependencies
+        run: composer update --${{ matrix.dependency-version }} --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --testdox

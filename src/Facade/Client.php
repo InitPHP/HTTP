@@ -7,7 +7,6 @@
  * @author     Muhammet ŞAFAK <info@muhammetsafak.com.tr>
  * @copyright  Copyright © 2022 Muhammet ŞAFAK
  * @license    ./LICENSE  MIT
- * @version    2.0
  * @link       https://www.muhammetsafak.com.tr
  */
 
@@ -16,11 +15,16 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Facade;
 
-use InitPHP\HTTP\Facade\Interfaces\FacadebleInterface;
-use InitPHP\HTTP\Facade\Traits\Facadeble;
+use InitPHP\HTTP\Facade\Interfaces\FacadableInterface;
+use InitPHP\HTTP\Facade\Traits\Facadable;
 use Psr\Http\Message\ResponseInterface;
 
 /**
+ * Static facade over a lazily-constructed {@see \InitPHP\HTTP\Client\Client}
+ * singleton. Forwards every static call to the underlying instance via
+ * {@see Facadable}, so application code can write
+ * `Client::post('https://...')` without manually wiring the PSR-18 client.
+ *
  * @mixin \InitPHP\HTTP\Client\Client
  * @method static \Psr\Http\Message\ResponseInterface sendRequest(\Psr\Http\Message\RequestInterface $request)
  * @method static string getUserAgent()
@@ -34,13 +38,21 @@ use Psr\Http\Message\ResponseInterface;
  * @method static ResponseInterface delete(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
  * @method static ResponseInterface head(string $url, mixed $body = null, array $headers = [], string $version = '1.1')
  */
-final class Client implements FacadebleInterface
+final class Client implements FacadableInterface
 {
 
-    use Facadeble;
+    use Facadable;
 
     private static \InitPHP\HTTP\Client\Client $instance;
 
+    /**
+     * Return the shared {@see \InitPHP\HTTP\Client\Client} instance,
+     * constructing it on first call. Subsequent calls return the exact
+     * same object so configuration changes persist across the facade.
+     *
+     * @return object
+     * @throws \InitPHP\HTTP\Client\Exceptions\ClientException When ext-curl is not loaded.
+     */
     public static function getInstance(): object
     {
         if (!isset(self::$instance)) {
