@@ -41,7 +41,7 @@ class Uri implements UriInterface
 
     protected string $host = '';
 
-    protected ?int $port;
+    protected ?int $port = null;
 
     protected string $path = '';
 
@@ -181,7 +181,7 @@ class Uri implements UriInterface
     public function setUserInfo(string $user, ?string $password = null): self
     {
         $info = $user;
-        if ($password !== null && $password !== null) {
+        if ($password !== null && $password !== '') {
             $info .= ':' . $password;
         }
         if ($this->userInfo === $info) {
@@ -314,10 +314,7 @@ class Uri implements UriInterface
         if($scheme !== ''){
             $uri .= $scheme . ':';
         }
-        if($scheme === 'file'){
-            $uri .= '///';
-        }
-        if($authority !== ''){
+        if($authority !== '' || $scheme === 'file'){
             $uri .= '//' . $authority;
         }
 

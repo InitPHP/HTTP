@@ -20,22 +20,16 @@ use \Throwable;
 use \RuntimeException;
 use \InvalidArgumentException;
 
-use const E_USER_ERROR;
-use const PHP_VERSION_ID;
 use const SEEK_SET;
 use const SEEK_CUR;
 use const SEEK_END;
 
 use function is_string;
-use function is_array;
 use function in_array;
 use function is_scalar;
 use function is_resource;
 use function substr;
 use function strlen;
-use function set_error_handler;
-use function restore_error_handler;
-use function trigger_error;
 use function error_get_last;
 use function var_export;
 use function stream_get_meta_data;
@@ -63,13 +57,14 @@ class Stream implements StreamInterface
     /** @var resource|string  */
     private $stream;
 
-    protected ?bool $seekable;
+    protected bool $seekable = false;
 
-    protected ?bool $readable;
+    protected bool $readable = false;
 
-    protected ?bool $writable;
+    protected bool $writable = false;
 
-    protected $uri;
+    /** @var string|false|null  false = aranıp bulunamadı, null = henüz aranmadı */
+    protected $uri = null;
 
     protected ?int $size = null;
 
@@ -125,24 +120,10 @@ class Stream implements StreamInterface
      */
     public function __toString()
     {
-        try{
-            if(is_resource($this->stream) && $this->isSeekable()){
-                $this->seek(0);
-            }
-            return $this->getContents();
-        }catch (Throwable $e){
-            if(PHP_VERSION_ID >= 70400){
-                throw $e;
-            }
-            if(is_array($errorHandler = set_error_handler('var_dump'))){
-                $errorHandler = $errorHandler[0] ?? null;
-            }
-            restore_error_handler();
-            if($errorHandler instanceof \Error){
-                return trigger_error((string)$e, E_USER_ERROR);
-            }
-            return '';
+        if($this->isSeekable()){
+            $this->seek(0);
         }
+        return $this->getContents();
     }
 
     /**
@@ -161,9 +142,6 @@ class Stream implements StreamInterface
      */
     public function init($body = null, ?string $target = 'php://temp'): StreamInterface
     {
-        if($body instanceof StreamInterface){
-            return $body;
-        }
         if(in_array($target, ['php://temp', 'php://memory', null], true) === FALSE){
             throw new InvalidArgumentException('The target for the stream can only be "php://temp", "php://memory" or NULL.');
         }
@@ -171,20 +149,33 @@ class Stream implements StreamInterface
         if($body === null){
             $body = '';
         }
+        if($body instanceof StreamInterface){
+            if($body->isSeekable()){
+                $body->rewind();
+            }
+            $body = $body->getContents();
+        }
         if($this->target === null){
             if(!is_scalar($body)){
                 throw new InvalidArgumentException("The parameter \$body must be a string.");
             }
             $this->stream = (string)$body;
-            $this->seek = $this->size = strlen($this->stream);
+            $this->seek = 0;
+            $this->size = strlen($this->stream);
             $this->readable = true;
             $this->writable = true;
             $this->seekable = true;
             return $this;
         }
         if(is_string($body)){
-            $resource = fopen($this->target, 'rw+');
-            fwrite($resource, $body);
+            $resource = @fopen($this->target, 'w+b');
+            if($resource === false){
+                throw new RuntimeException(sprintf('Unable to open stream "%s": %s', $this->target, error_get_last()['message'] ?? ''));
+            }
+            if($body !== ''){
+                fwrite($resource, $body);
+                fseek($resource, 0);
+            }
             $body = $resource;
         }
         if(is_resource($body)){
@@ -195,7 +186,7 @@ class Stream implements StreamInterface
             $this->writable = isset(self::READ_WRITE_HASH['write'][$meta['mode']]);
             return $this;
         }
-        throw new \InvalidArgumentException("The parameter \$body must be a string or a resource.");
+        throw new InvalidArgumentException("The parameter \$body must be a string or a resource.");
     }
 
     /**
@@ -411,7 +402,7 @@ class Stream implements StreamInterface
     public function getContents(): string
     {
         if(!isset($this->stream)){
-            throw new RuntimeException('Stream is detacked');
+            throw new RuntimeException('Stream is detached');
         }
         if(is_string($this->stream)){
             return $this->stream;
@@ -463,10 +454,10 @@ class Stream implements StreamInterface
 
     protected function getUri()
     {
-        if($this->uri !== FALSE){
+        if($this->uri === null){
             $this->uri = $this->getMetadata('uri') ?? false;
         }
-        return $this->uri;
+        return $this->uri === false ? null : $this->uri;
     }
 
     /**

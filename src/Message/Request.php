@@ -72,10 +72,11 @@ class Request implements \InitPHP\HTTP\Message\Interfaces\RequestInterface
     {
         if (!isset(self::$requestImmutable)) {
             $method = ($_SERVER['REQUEST_METHOD']) ?? ((defined('PHP_SAPI') && PHP_SAPI === 'cli') ? 'CLI' : 'GET');
+            $port = $_SERVER['SERVER_PORT'] ?? null;
             $uri = (($_SERVER['HTTPS'] ?? 'off') === 'on' ? 'https' : 'http')
                     . '://'
                     . (($_SERVER['SERVER_NAME']) ?? ($_ENV['SERVER_NAME'] ?? 'localhost'))
-                    . (in_array(($_SERVER['SERVER_PORT'] ?? null), [80, 443]) ? ':' . $_SERVER['SERVER_PORT'] : '')
+                    . ($port !== null && !in_array((int)$port, [80, 443], true) ? ':' . $port : '')
                     . ($_SERVER['REQUEST_URI'] ?? '/');
 
             $headers = function_exists('apache_request_headers') ? apache_request_headers() : false;

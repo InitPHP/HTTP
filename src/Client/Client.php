@@ -24,11 +24,11 @@ use const FILTER_VALIDATE_URL;
 
 use function extension_loaded;
 use function trim;
-use function strtolower;
+use function strpos;
+use function count;
 use function preg_match;
 use function explode;
-use function ltrim;
-use function rtrim;
+use function implode;
 use function strlen;
 use function filter_var;
 use function array_change_key_case;
@@ -43,7 +43,7 @@ use function get_object_vars;
 class Client implements \Psr\Http\Client\ClientInterface
 {
 
-    protected string $userAgent;
+    protected string $userAgent = 'InitPHP HTTP PSR-18 Client cURL';
 
     public function __construct()
     {
@@ -54,7 +54,7 @@ class Client implements \Psr\Http\Client\ClientInterface
 
     public function getUserAgent(): string
     {
-        return $this->userAgent ?? 'InitPHP HTTP PSR-18 Client cURL';
+        return $this->userAgent;
     }
 
     public function setUserAgent(?string $userAgent = null): self
@@ -119,114 +119,129 @@ class Client implements \Psr\Http\Client\ClientInterface
      */
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
-        if ($request instanceof \InitPHP\HTTP\Message\Request) {
+        if ($request instanceof Request) {
             $requestParameters = $request->all();
-            if (!empty($requestParameters) && empty(trim($request->getBody()->getContents()))) {
-                $bodyContent = json_encode($requestParameters);
-                $request->getBody()->isWritable()
-                    ? $request->getBody()->write($bodyContent)
-                    : $request->setBody(new Stream($bodyContent, null));
+            if (!empty($requestParameters)) {
+                $existing = (string) $request->getBody();
+                if (trim($existing) === '') {
+                    $request = $request->withBody(new Stream(json_encode($requestParameters), null));
+                }
             }
         }
 
-        $options = $this->prepareCurlOptions($request);
+        $response = [
+            'body'      => '',
+            'version'   => $request->getProtocolVersion(),
+            'status'    => 200,
+            'headers'   => [],
+        ];
+
+        $options = $this->prepareCurlOptions($request, $response);
+
+        $curl = \curl_init();
+        if ($curl === false) {
+            throw new ClientException('Unable to initialize cURL session.');
+        }
         try {
-            $curl = \curl_init();
             \curl_setopt_array($curl, $options);
-            if (!\curl_errno($curl)) {
-                $response['body'] = \curl_exec($curl);
-            } else {
-                throw new ClientException(\curl_error($curl), (int)\curl_errno($curl));
+            $body = \curl_exec($curl);
+            if ($body === false) {
+                $errno = \curl_errno($curl);
+                $error = \curl_error($curl);
+                throw new NetworkException($request, $error !== '' ? $error : 'cURL error', (int) $errno);
             }
-        } catch (\Throwable $e) {
-            throw new NetworkException($request, $e->getMessage(), (int)$e->getCode(), $e->getPrevious());
+            $response['body'] = (string) $body;
         } finally {
             if (\PHP_VERSION_ID < 80500) {
                 \curl_close($curl);
             }
         }
 
-        return new Response($response['status'], $response['headers'], new Stream($response['body'], null), $response['version']);
+        return new Response(
+            $response['status'],
+            $response['headers'],
+            new Stream($response['body'], null),
+            $response['version']
+        );
     }
 
 
-    private function prepareCurlOptions(RequestInterface $request): array
+    private function prepareCurlOptions(RequestInterface $request, array &$response): array
     {
         try {
             $url = $request->getUri()->__toString();
-            if (filter_var($url, FILTER_VALIDATE_URL)) {
+            if (filter_var($url, FILTER_VALIDATE_URL) === false) {
                 throw new ClientException('URL address is not valid.');
             }
             $version = $request->getProtocolVersion();
             $method = $request->getMethod();
             $headers = $request->getHeaders();
-            $body = $request->getBody()->getContents();
+            $body = (string) $request->getBody();
+        } catch (ClientException $e) {
+            throw new RequestException($request, $e->getMessage(), (int) $e->getCode(), $e);
         } catch (\Throwable $e) {
-            throw new RequestException($request, $e->getMessage(), (int)$e->getCode(), $e->getPrevious());
+            throw new RequestException($request, $e->getMessage(), (int) $e->getCode(), $e);
         }
 
-        try {
-            $options = [
-                \CURLOPT_URL                => $url,
-                \CURLOPT_RETURNTRANSFER     => true,
-                \CURLOPT_ENCODING           => '',
-                \CURLOPT_MAXREDIRS          => 10,
-                \CURLOPT_TIMEOUT            => 0,
-                \CURLOPT_FOLLOWLOCATION     => true,
-                \CURLOPT_CUSTOMREQUEST      => $method,
-                \CURLOPT_USERAGENT          => $this->getUserAgent(),
-            ];
-            switch ($version) {
-                case '1.0':
-                    $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_1_0;
-                    break;
-                case '2.0':
-                    $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_2_0;
-                    break;
-                default:
-                    $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_1_1;
+        $options = [
+            \CURLOPT_URL                => $url,
+            \CURLOPT_RETURNTRANSFER     => true,
+            \CURLOPT_ENCODING           => '',
+            \CURLOPT_MAXREDIRS          => 10,
+            \CURLOPT_TIMEOUT            => 0,
+            \CURLOPT_FOLLOWLOCATION     => true,
+            \CURLOPT_CUSTOMREQUEST      => $method,
+            \CURLOPT_USERAGENT          => $this->getUserAgent(),
+        ];
+        switch ($version) {
+            case '1.0':
+                $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_1_0;
+                break;
+            case '2.0':
+                $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_2_0;
+                break;
+            default:
+                $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_1_1;
+        }
+
+        if ($method === 'HEAD') {
+            $options[\CURLOPT_NOBODY] = true;
+        } elseif ($body !== '') {
+            $options[\CURLOPT_POSTFIELDS] = $body;
+        }
+
+        if (!empty($headers)) {
+            $flat = [];
+            foreach ($headers as $name => $value) {
+                $valueStr = is_array($value) ? implode(', ', $value) : (string) $value;
+                $flat[] = $name . ': ' . $valueStr;
             }
+            $options[\CURLOPT_HTTPHEADER] = $flat;
+        }
 
-            if ($method === 'HEAD') {
-                $options[\CURLOPT_NOBODY] = true;
-            } else {
-                if (!empty($body)) {
-                    $options[\CURLOPT_POSTFIELDS] = $body;
-                }
-            }
-            if (!empty($headers)) {
-                $options[\CURLOPT_HTTPHEADER] = [];
-                foreach ($headers as $name => $value) {
-                    $options[\CURLOPT_HTTPHEADER][] = $name . ': ' . $value;
-                }
-            }
-
-            $response = [
-                'body'      => '',
-                'version'   => $version,
-                'status'    => 200,
-                'headers'   => [],
-            ];
-
-            $options[\CURLOPT_HEADERFUNCTION] = function ($ch, $data) use (&$response) {
-                $str = trim($data);
-                if (!empty($str)) {
-                    $lowercase = strtolower($str);
-                    if (preg_match("/http\/([\.0-2]+) ([\d]+).?/i", $lowercase, $matches)) {
-                        $response['version'] = $matches[1];
-                        $response['status'] = (int)$matches[2];
-                    } else {
-                        $split = explode(':', $str, 2);
-                        $response['headers'][trim($split[0], ' ')] = ltrim(rtrim($split[1], ';'), ' ');
-                    }
-                }
-
+        $options[\CURLOPT_HEADERFUNCTION] = function ($ch, $data) use (&$response) {
+            $str = trim($data);
+            if ($str === '') {
                 return strlen($data);
-            };
-
-        } catch (\Throwable $e) {
-            throw new ClientException($e->getMessage(), (int)$e->getCode(), $e->getPrevious());
-        }
+            }
+            if (preg_match('#^HTTP/(\d(?:\.\d)?)\s+(\d{3})#i', $str, $matches)) {
+                $protocol = $matches[1];
+                if (strpos($protocol, '.') === false) {
+                    $protocol .= '.0';
+                }
+                $response['version'] = $protocol;
+                $response['status']  = (int) $matches[2];
+                $response['headers'] = [];
+                return strlen($data);
+            }
+            $split = explode(':', $str, 2);
+            if (count($split) === 2) {
+                $name  = trim($split[0]);
+                $value = trim($split[1]);
+                $response['headers'][$name][] = $value;
+            }
+            return strlen($data);
+        };
 
         return $options;
     }
@@ -253,10 +268,10 @@ class Client implements \Psr\Http\Client\ClientInterface
             }
             $body = new Stream($body, null);
         }
-        if ($body instanceof StreamInterface) {
+        if (!($body instanceof StreamInterface)) {
             throw new \InvalidArgumentException("\$body is not supported.");
         }
-        return new Request($method, $url, $body, $headers, $version);
+        return new Request($method, $url, $headers, $body, $version);
     }
 
 }
