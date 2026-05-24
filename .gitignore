@@ -3,3 +3,5 @@
 /.vs/
 /vendor/
 /composer.lock
+/.phpunit.cache/
+/.phpunit.result.cache

@@ -204,7 +204,7 @@ class Client implements \Psr\Http\Client\ClientInterface
                 $options[\CURLOPT_HTTP_VERSION] = \CURL_HTTP_VERSION_1_1;
         }
 
-        if ($method === 'HEAD') {
+        if (\strtoupper($method) === 'HEAD') {
             $options[\CURLOPT_NOBODY] = true;
         } elseif ($body !== '') {
             $options[\CURLOPT_POSTFIELDS] = $body;

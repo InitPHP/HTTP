@@ -43,6 +43,20 @@ class ServerRequest implements ServerRequestInterface
     protected array $uploadedFiles = [];
 
 
+    /**
+     * PSR-7 immutability: clone'da body + URI'yi derinleştir.
+     * uploadedFiles ve attributes ham PHP array'i; copy-on-write zaten kopyalar.
+     */
+    public function __clone()
+    {
+        if (isset($this->stream)) {
+            $this->stream = clone $this->stream;
+        }
+        if (isset($this->uri)) {
+            $this->uri = clone $this->uri;
+        }
+    }
+
     public function __construct(string $method, $uri, array $headers = [], $body = null, string $version = '1.1', array $serverParams = [])
     {
         $this->serverParams = $serverParams;

@@ -38,6 +38,24 @@ class Request implements \InitPHP\HTTP\Message\Interfaces\RequestInterface
 
     private static Request $requestImmutable;
 
+    /**
+     * PSR-7 immutability: clone'da body ve URI'yi de derinleştir; aksi halde
+     * `$cloned->getBody()->write(...)` veya `$cloned->getUri()->setHost(...)`
+     * orijinali mutasyona uğratır.
+     */
+    public function __clone()
+    {
+        if (isset($this->stream)) {
+            $this->stream = clone $this->stream;
+        }
+        if (isset($this->uri)) {
+            $this->uri = clone $this->uri;
+        }
+        if (isset($this->_objParameters)) {
+            $this->_objParameters = clone $this->_objParameters;
+        }
+    }
+
     public function __construct(string $method, $uri, array $headers = [], $body = null, string $version = '1.1')
     {
         if(!($uri instanceof UriInterface)) {
