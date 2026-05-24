@@ -135,6 +135,55 @@ class Stream implements StreamInterface
     }
 
     /**
+     * PSR-7 immutability: clone yapıldığında resource'u derinleştir; aksi halde
+     * iki Stream aynı resource handle'ını paylaşır, withBody dışı tüm withX
+     * çağrıları orijinal mesajın body'sini de değiştirir.
+     */
+    public function __clone()
+    {
+        if (!isset($this->stream)) {
+            return;
+        }
+        $this->uri = null;
+        if (is_string($this->stream)) {
+            // String backend zaten PHP copy-on-write; ek iş gerekmiyor.
+            return;
+        }
+        if (!is_resource($this->stream)) {
+            return;
+        }
+        $originalPosition = @ftell($this->stream);
+        if ($this->seekable) {
+            @rewind($this->stream);
+        }
+        $contents = @stream_get_contents($this->stream);
+        if ($contents === false) {
+            $contents = '';
+        }
+        if ($this->seekable && is_int($originalPosition)) {
+            @fseek($this->stream, $originalPosition);
+        }
+        $copy = @fopen('php://temp', 'w+b');
+        if ($copy === false) {
+            return;
+        }
+        if ($contents !== '') {
+            fwrite($copy, $contents);
+        }
+        // Orijinal stream'in pozisyonunu koru
+        if (is_int($originalPosition)) {
+            fseek($copy, $originalPosition);
+        } else {
+            rewind($copy);
+        }
+        $this->stream = $copy;
+        $this->size = strlen($contents);
+        $this->seekable = true;
+        $this->readable = true;
+        $this->writable = true;
+    }
+
+    /**
      * @param null|string|resource|StreamInterface $body
      * @param string|null $target <p>["php://temp"|"php://memory"|NULL]</p>
      * @return StreamInterface
@@ -154,6 +203,15 @@ class Stream implements StreamInterface
                 $body->rewind();
             }
             $body = $body->getContents();
+        }
+        // Resource'lar target'tan bağımsız her zaman kabul edilir
+        if(is_resource($body)){
+            $this->stream = $body;
+            $meta = stream_get_meta_data($this->stream);
+            $this->seekable = $meta['seekable'] && fseek($this->stream, 0, SEEK_CUR) === 0;
+            $this->readable = isset(self::READ_WRITE_HASH['read'][$meta['mode']]);
+            $this->writable = isset(self::READ_WRITE_HASH['write'][$meta['mode']]);
+            return $this;
         }
         if($this->target === null){
             if(!is_scalar($body)){
@@ -176,10 +234,7 @@ class Stream implements StreamInterface
                 fwrite($resource, $body);
                 fseek($resource, 0);
             }
-            $body = $resource;
-        }
-        if(is_resource($body)){
-            $this->stream = $body;
+            $this->stream = $resource;
             $meta = stream_get_meta_data($this->stream);
             $this->seekable = $meta['seekable'] && fseek($this->stream, 0, SEEK_CUR) === 0;
             $this->readable = isset(self::READ_WRITE_HASH['read'][$meta['mode']]);

@@ -154,8 +154,8 @@ trait MessageTrait
             return $this;
         }
 
-        $name = $this->headerNames[$lowercase];
-        unset($this->headerNames[$name], $this->headerNames[$lowercase]);
+        $original = $this->headerNames[$lowercase];
+        unset($this->headers[$original], $this->headerNames[$lowercase]);
 
         return $this;
     }

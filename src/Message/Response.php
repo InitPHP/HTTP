@@ -109,6 +109,17 @@ class Response implements ResponseInterface
      * @param string $version
      * @param string|null $reason
      */
+    /**
+     * PSR-7 immutability: clone'da body'i de derinleştir ki
+     * `$cloned->getBody()->write(...)` orijinali bozmasın.
+     */
+    public function __clone()
+    {
+        if (isset($this->stream)) {
+            $this->stream = clone $this->stream;
+        }
+    }
+
     public function __construct(int $status = 200, array $headers = [], $body = null, string $version = '1.1', ?string $reason = null)
     {
         if(!in_array($version, ['1.0', '1.1', '2.0'], true)){

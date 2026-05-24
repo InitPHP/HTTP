@@ -22,6 +22,7 @@ use function in_array;
 use function is_string;
 use function preg_match;
 use function strtoupper;
+use function array_map;
 
 trait RequestTrait
 {
@@ -37,7 +38,7 @@ trait RequestTrait
      */
     public function isGet(): bool
     {
-        return $this->getMethod() === 'GET';
+        return strtoupper($this->getMethod()) === 'GET';
     }
 
     /**
@@ -45,7 +46,7 @@ trait RequestTrait
      */
     public function isPost(): bool
     {
-        return $this->getMethod() === 'POST';
+        return strtoupper($this->getMethod()) === 'POST';
     }
 
     /**
@@ -53,7 +54,7 @@ trait RequestTrait
      */
     public function isPut(): bool
     {
-        return $this->getMethod() === 'PUT';
+        return strtoupper($this->getMethod()) === 'PUT';
     }
 
     /**
@@ -61,7 +62,7 @@ trait RequestTrait
      */
     public function isDelete(): bool
     {
-        return $this->getMethod() === 'DELETE';
+        return strtoupper($this->getMethod()) === 'DELETE';
     }
 
     /**
@@ -69,7 +70,7 @@ trait RequestTrait
      */
     public function isHead(): bool
     {
-        return $this->getMethod() === 'HEAD';
+        return strtoupper($this->getMethod()) === 'HEAD';
     }
 
     /**
@@ -77,7 +78,7 @@ trait RequestTrait
      */
     public function isPatch(): bool
     {
-        return $this->getMethod() === 'PATCH';
+        return strtoupper($this->getMethod()) === 'PATCH';
     }
 
     /**
@@ -85,7 +86,7 @@ trait RequestTrait
      */
     public function isMethod(string ...$method): bool
     {
-        return in_array($this->getMethod(), $method);
+        return in_array(strtoupper($this->getMethod()), array_map('strtoupper', $method), true);
     }
 
     /**
@@ -143,7 +144,7 @@ trait RequestTrait
         if(!is_string($method)){
             throw new \InvalidArgumentException('Method must be a string.');
         }
-        $this->method = strtoupper($method);
+        $this->method = $method;
         return $this;
     }
 

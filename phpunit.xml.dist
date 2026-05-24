@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         failOnRisky="false"
+         failOnWarning="false"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="PSR-7 Integration">
+            <directory>tests/Psr7</directory>
+        </testsuite>
+        <testsuite name="PSR-17 Integration">
+            <directory>tests/Psr17</directory>
+        </testsuite>
+        <testsuite name="PSR-18 Integration">
+            <directory>tests/Psr18</directory>
+        </testsuite>
+        <testsuite name="Immutability">
+            <directory>tests/Immutability</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <const name="URI_FACTORY" value="InitPHP\HTTP\Factory\Factory"/>
+        <const name="STREAM_FACTORY" value="InitPHP\HTTP\Factory\Factory"/>
+        <const name="UPLOADED_FILE_FACTORY" value="InitPHP\HTTP\Factory\Factory"/>
+    </php>
+</phpunit>

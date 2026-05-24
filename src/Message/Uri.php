@@ -25,6 +25,8 @@ use function preg_replace_callback;
 use function rawurlencode;
 use function ltrim;
 use function sprintf;
+use function strpos;
+use function preg_replace;
 
 class Uri implements UriInterface
 {
@@ -56,14 +58,16 @@ class Uri implements UriInterface
                 throw new InvalidArgumentException(sprintf('Unable to parse URI: "%s"', $uri));
             }
             $this->scheme = isset($parts['scheme']) ? strtolower($parts['scheme']) : '';
-            $this->userInfo = $parts['user'] ?? '';
             $this->host = isset($parts['host']) ? strtolower($parts['host']) : '';
             $this->port = isset($parts['port']) ? $this->filterPort($parts['port']) : null;
             $this->path = isset($parts['path']) ? $this->filterPath($parts['path']) : '';
             $this->query = isset($parts['query']) ? $this->filterQueryAndFragment($parts['query']) : '';
             $this->fragment = isset($parts['fragment']) ? $this->filterQueryAndFragment($parts['fragment']) : '';
-            if (isset($parts['pass'])) {
-                $this->userInfo .= ':' . $parts['pass'];
+            if (isset($parts['user'])) {
+                $this->userInfo = $this->filterUserInfoComponent($parts['user']);
+                if (isset($parts['pass'])) {
+                    $this->userInfo .= ':' . $this->filterUserInfoComponent($parts['pass']);
+                }
             }
         }
     }
@@ -131,6 +135,9 @@ class Uri implements UriInterface
      */
     public function getPath(): string
     {
+        if(isset($this->path[0], $this->path[1]) && $this->path[0] === '/' && $this->path[1] === '/'){
+            return '/' . ltrim($this->path, '/');
+        }
         return $this->path;
     }
 
@@ -180,9 +187,9 @@ class Uri implements UriInterface
      */
     public function setUserInfo(string $user, ?string $password = null): self
     {
-        $info = $user;
+        $info = $this->filterUserInfoComponent($user);
         if ($password !== null && $password !== '') {
-            $info .= ':' . $password;
+            $info .= ':' . $this->filterUserInfoComponent($password);
         }
         if ($this->userInfo === $info) {
             return $this;
@@ -373,6 +380,11 @@ class Uri implements UriInterface
             throw new InvalidArgumentException('Query and fragment must be a string');
         }
         return preg_replace_callback('/(?:[^' . self::CHAR_UNRESERVED . self::CHAR_SUB_DELIMS . '%:@\/\?]++|%(?![A-Fa-f0-9]{2}))/', [__CLASS__, 'rawurlencodeMatchZero'], $str);
+    }
+
+    protected function filterUserInfoComponent(string $component): string
+    {
+        return preg_replace_callback('/(?:[^%' . self::CHAR_UNRESERVED . self::CHAR_SUB_DELIMS . ']+|%(?![A-Fa-f0-9]{2}))/', [__CLASS__, 'rawurlencodeMatchZero'], $component);
     }
 
     protected static function rawurlencodeMatchZero(array $match): string
