@@ -16,7 +16,15 @@ namespace InitPHP\HTTP\Tests\Unit;
  */
 trait FixtureServerTrait
 {
-    private const FIXTURE_HOST = '127.0.0.1';
+    /**
+     * PHP 8.1 and earlier do not allow constants inside traits — that was
+     * relaxed in PHP 8.2. Expose the host as a static method instead so the
+     * trait keeps working across the whole PHP 7.4 – 8.4 matrix.
+     */
+    private static function fixtureHost(): string
+    {
+        return '127.0.0.1';
+    }
 
     /** @var resource|null */
     private static $serverProcess;
@@ -46,13 +54,13 @@ trait FixtureServerTrait
         if (!is_file($fixture)) {
             self::fail('Fixture server file is missing: ' . $fixture);
         }
-        self::$baseUrl = 'http://' . self::FIXTURE_HOST . ':' . $port;
+        self::$baseUrl = 'http://' . self::fixtureHost() . ':' . $port;
 
         self::killFixturePortListeners($port);
 
         $cmd = sprintf(
             'PHP_CLI_SERVER_WORKERS=4 exec php -S %s:%d %s',
-            self::FIXTURE_HOST,
+            self::fixtureHost(),
             $port,
             escapeshellarg($fixture)
         );
@@ -69,7 +77,7 @@ trait FixtureServerTrait
 
         $deadline = microtime(true) + 5.0;
         while (microtime(true) < $deadline) {
-            $sock = @fsockopen(self::FIXTURE_HOST, $port, $errno, $errstr, 0.2);
+            $sock = @fsockopen(self::fixtureHost(), $port, $errno, $errstr, 0.2);
             if (is_resource($sock)) {
                 fclose($sock);
                 return;
