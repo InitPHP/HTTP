@@ -41,10 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`Stream::str2resorce()` renamed** to `Stream::stringToResource()` (private). Materialised detach handle now preserves cursor position.
 - **`RequestTrait::updateHostFormUri()` renamed** to `updateHostFromUri()`.
 - **HTTP version whitelist widened** to accept `2`, `2.0`, `3`, `3.0` (alongside `1.0` and `1.1`).
-- **Native return types added for PSR-7 v2 covariance** on six methods:
+- **Native return types added for PSR-7 v2 covariance** on seven methods:
   `Stream::close(): void`, `Stream::seek(...): void`, `Stream::rewind(): void`,
   `MessageTrait::getHeader($name): array`,
-  `UploadedFile::getStream(): StreamInterface`, `UploadedFile::moveTo(...): void`.
+  `UploadedFile::getStream(): StreamInterface`, `UploadedFile::moveTo(...): void`,
+  `Uri::__toString(): string`.
+  Required by PHP 7.4 + PSR-7 v2 (`Declaration must be compatible with ...`
+  fatal at class load); PHP 8.0+ accepted the untyped signatures silently
+  but the fix is uniform across all supported PHP versions.
   No call-site change is required (the existing `@return` PHPDoc lines
   already documented these types), but subclass overrides must match the
   new signatures or stay untyped.
@@ -60,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UploadedFile::moveTo()` survives partial-write iterations and retries until the chunk is flushed.
 - `ServerRequest::normalizeFiles()` recurses into arbitrarily nested file input names (`file[parent][child][…]`).
 - `send_request()` (global helper) requires a URL when the first arg is a method string instead of silently sending to `null`.
+- `tests/Unit/FixtureServerTrait` exposes the loopback host through a static method instead of a trait constant, so the unit suite loads on PHP 7.4 / 8.0 / 8.1 (trait constants are a PHP 8.2+ feature).
+- `static-analysis.yml` workflow now runs PHPStan with `--memory-limit=512M`, matching the `composer phpstan` script — the default 128 MiB triggered an OOM under PHP 7.4 during local reproduction.
 
 ### Removed (in addition to breaking changes above)
 

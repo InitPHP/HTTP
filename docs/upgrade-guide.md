@@ -142,7 +142,7 @@ The `target=null` (pure in-memory string) backend used to *prepend* at position 
 
 ### 15. Native return types added for PSR-7 v2 covariance
 
-Six methods gained explicit language-level return types to satisfy the tightened `psr/http-message: ^2.0` contract:
+Seven methods gained explicit language-level return types to satisfy the tightened `psr/http-message: ^2.0` contract:
 
 | Method                                       | Added return type   |
 |----------------------------------------------|---------------------|
@@ -152,8 +152,13 @@ Six methods gained explicit language-level return types to satisfy the tightened
 | `MessageTrait::getHeader($name)`             | `: array`           |
 | `UploadedFile::getStream()`                  | `: StreamInterface` |
 | `UploadedFile::moveTo($targetPath)`          | `: void`            |
+| `Uri::__toString()`                          | `: string`          |
 
 Existing PHPDoc `@return` lines already documented these types — only the runtime signature changed. **No call-site code needs to change.**
+
+> **Why this matters most on PHP 7.4 + PSR-7 v2.** PHP 7.4 enforces return-type covariance strictly: an untyped implementation does not satisfy a typed interface return, and the result is a fatal at class load:
+> *"Declaration of InitPHP\HTTP\Message\Uri::__toString() must be compatible with Psr\Http\Message\UriInterface::__toString(): string"*.
+> PHP 8.0+ accepted the older signatures silently. The fix is uniform across all supported PHP versions.
 
 If you **extended** any of these classes and **overrode** one of those methods, your override's signature must now match the new return type (or stay untyped — PHP allows that). An override declaring a different return type will fail at class load with a covariance error.
 
