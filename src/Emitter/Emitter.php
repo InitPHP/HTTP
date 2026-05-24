@@ -20,7 +20,8 @@ use \Psr\Http\Message\{ResponseInterface, StreamInterface};
 
 use function assert;
 use function is_string;
-use function ucfirst;
+use function ucwords;
+use function strtolower;
 use function header;
 use function sprintf;
 use function headers_sent;
@@ -34,8 +35,6 @@ use function preg_match;
 class Emitter
 {
 
-    protected ?int $bufferLength = null;
-
     protected bool $strictMode = true;
 
     public function __construct(bool $strictMode = true)
@@ -45,44 +44,41 @@ class Emitter
 
     public function emit(ResponseInterface $response, ?int $bufferLength = null): void
     {
-        if($bufferLength !== null && $bufferLength > 0){
-            $this->bufferLength = $bufferLength;
-        }
         $this->assertNoPreviousOutput();
-        $this->emitHeaders($response);
         $this->emitStatusLine($response);
-        $this->emitBody($response);
-    }
-
-    private function emitBody(ResponseInterface $response): void
-    {
-        if($this->bufferLength === null){
-            echo $response->getBody();
+        $this->emitHeaders($response);
+        if($bufferLength !== null && $bufferLength > 0){
+            $this->emitBody($response, $bufferLength);
             return;
         }
+        echo $response->getBody();
+    }
+
+    private function emitBody(ResponseInterface $response, int $bufferLength): void
+    {
         flush();
         $stream = $response->getBody();
         $range = $this->parseHeaderContentRange($response->getHeaderLine('content-range'));
         if(isset($range['unit']) && $range['unit'] === 'bytes'){
-            $this->emitBodyRange($stream, $range['first'], $range['last']);
+            $this->emitBodyRange($stream, (int)$range['first'], (int)$range['last'], $bufferLength);
             return;
         }
         if($stream->isSeekable()){
             $stream->rewind();
         }
         while(!$stream->eof()){
-            echo $stream->read($this->bufferLength);
+            echo $stream->read($bufferLength);
         }
     }
 
-    private function emitBodyRange(StreamInterface $body, int $first, int $last): void
+    private function emitBodyRange(StreamInterface $body, int $first, int $last, int $bufferLength): void
     {
-        $length = $last - ($first + 1);
+        $length = $last - $first + 1;
         if($body->isSeekable()){
             $body->seek($first);
         }
-        while($length >= $this->bufferLength && !$body->eof()){
-            $content = $body->read($this->bufferLength);
+        while($length >= $bufferLength && !$body->eof()){
+            $content = $body->read($bufferLength);
             $length -= strlen($content);
             echo $content;
         }
@@ -124,8 +120,8 @@ class Emitter
 
         foreach ($response->getHeaders() as $header => $values){
             assert(is_string($header));
-            $name = ucfirst($header);
-            $first = ($name !== 'Set-Cookie');
+            $name = ucwords(strtolower($header), '-');
+            $first = (strtolower($name) !== 'set-cookie');
             foreach ($values as $value){
                 header(sprintf('%s: %s', $name, $value), $first, $statusCode);
                 $first = false;

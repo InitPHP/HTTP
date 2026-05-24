@@ -195,7 +195,7 @@ class Response implements ResponseInterface
 
     public function json(array $data = [], int $status = 200): self
     {
-        return (clone $this)->addedHeader('Content-Type', 'application/json')
+        return (clone $this)->setHeader('Content-Type', 'application/json')
             ->setBody(new Stream(json_encode($data), null))
             ->setStatusCode($status);
     }
@@ -205,8 +205,8 @@ class Response implements ResponseInterface
         if (is_string($uri)) {
             $uri = new Uri($uri);
         }
-        if (!($uri instanceof Uri)) {
-            throw new InvalidArgumentException('URI is not invalid.');
+        if (!($uri instanceof \Psr\Http\Message\UriInterface)) {
+            throw new InvalidArgumentException('URI is not valid.');
         }
 
         $with = clone $this;
@@ -214,8 +214,8 @@ class Response implements ResponseInterface
         $with->setStatusCode($status);
 
         return $second > 0
-            ? $with->addedHeader('Refresh',  $second . '; url=' . $uri->__toString())
-            : $with->addedHeader('Location', $uri->__toString());
+            ? $with->setHeader('Refresh',  $second . '; url=' . $uri->__toString())
+            : $with->setHeader('Location', $uri->__toString());
     }
 
 }
