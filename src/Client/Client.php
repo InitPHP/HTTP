@@ -141,8 +141,9 @@ class Client implements \Psr\Http\Client\ClientInterface
         } catch (\Throwable $e) {
             throw new NetworkException($request, $e->getMessage(), (int)$e->getCode(), $e->getPrevious());
         } finally {
-            \curl_reset($curl);
-            \curl_close($curl);
+            if (\PHP_VERSION_ID < 80500) {
+                \curl_close($curl);
+            }
         }
 
         return new Response($response['status'], $response['headers'], new Stream($response['body'], null), $response['version']);
