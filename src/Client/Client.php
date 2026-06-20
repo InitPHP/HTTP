@@ -17,6 +17,8 @@ namespace InitPHP\HTTP\Client;
 use \InitPHP\HTTP\Message\{Request, Stream, Response};
 use \Psr\Http\Message\{RequestInterface, ResponseInterface, StreamInterface};
 use \InitPHP\HTTP\Client\Exceptions\{ClientException, NetworkException, RequestException};
+use \InitPHP\HTTP\Client\Retry\{Backoff, RetryAfter, RetryPolicy, Sleeper, SleeperInterface};
+use \Psr\Http\Client\NetworkExceptionInterface;
 
 use const CASE_LOWER;
 use const FILTER_VALIDATE_URL;
@@ -82,6 +84,27 @@ class Client implements \Psr\Http\Client\ClientInterface
     protected int $maxRedirects = 10;
 
     /**
+     * Opt-in retry policy. When null (the default), {@see Client::sendRequest()}
+     * makes exactly one transport attempt and returns/throws as before — fully
+     * backward-compatible. Attaching a policy turns on retry-with-backoff.
+     */
+    protected ?RetryPolicy $retryPolicy = null;
+
+    /**
+     * Pacing strategy used to wait between retry attempts. Injectable so the
+     * retry loop can be exercised without real wall-clock delays in tests.
+     */
+    protected SleeperInterface $sleeper;
+
+    /**
+     * Optional jitter randomness source (a callable returning a float in
+     * [0, 1)) forwarded to {@see Backoff}. null defers to Backoff's default.
+     *
+     * @var (callable(): float)|null
+     */
+    protected $jitterRandomizer = null;
+
+    /**
      * Construct a client and assert ext-curl is loaded; the cURL extension
      * is the only transport this client speaks.
      *
@@ -92,6 +115,7 @@ class Client implements \Psr\Http\Client\ClientInterface
         if (!extension_loaded('curl')) {
             throw new ClientException('The CURL extension must be installed.');
         }
+        $this->sleeper = new Sleeper();
     }
 
     /**
@@ -248,6 +272,91 @@ class Client implements \Psr\Http\Client\ClientInterface
     }
 
     /**
+     * Attach (or clear) the retry-with-backoff policy in place. Passing null
+     * restores the default single-attempt behaviour.
+     *
+     * @param  RetryPolicy|null $policy
+     * @return $this
+     */
+    public function setRetryPolicy(?RetryPolicy $policy): self
+    {
+        $this->retryPolicy = $policy;
+
+        return $this;
+    }
+
+    /**
+     * Return a clone of the client with the retry policy replaced (or cleared).
+     *
+     * @param  RetryPolicy|null $policy
+     * @return $this
+     */
+    public function withRetryPolicy(?RetryPolicy $policy): self
+    {
+        return (clone $this)->setRetryPolicy($policy);
+    }
+
+    /**
+     * Return the active retry policy, or null when retries are disabled.
+     *
+     * @return RetryPolicy|null
+     */
+    public function getRetryPolicy(): ?RetryPolicy
+    {
+        return $this->retryPolicy;
+    }
+
+    /**
+     * Replace the inter-attempt pacing strategy (in place). Primarily a test
+     * seam: inject a no-op sleeper to exercise the retry loop instantly.
+     *
+     * @param  SleeperInterface $sleeper
+     * @return $this
+     */
+    public function setSleeper(SleeperInterface $sleeper): self
+    {
+        $this->sleeper = $sleeper;
+
+        return $this;
+    }
+
+    /**
+     * Return a clone of the client with the pacing strategy replaced.
+     *
+     * @param  SleeperInterface $sleeper
+     * @return $this
+     */
+    public function withSleeper(SleeperInterface $sleeper): self
+    {
+        return (clone $this)->setSleeper($sleeper);
+    }
+
+    /**
+     * Replace the jitter randomness source (in place) forwarded to the backoff
+     * calculator. Pass null to defer to the default mt_rand()-based source.
+     *
+     * @param  (callable(): float)|null $randomizer Returns a float in [0, 1).
+     * @return $this
+     */
+    public function setJitterRandomizer(?callable $randomizer): self
+    {
+        $this->jitterRandomizer = $randomizer;
+
+        return $this;
+    }
+
+    /**
+     * Return a clone of the client with the jitter randomness source replaced.
+     *
+     * @param  (callable(): float)|null $randomizer
+     * @return $this
+     */
+    public function withJitterRandomizer(?callable $randomizer): self
+    {
+        return (clone $this)->setJitterRandomizer($randomizer);
+    }
+
+    /**
      * Dispatch a request specified as a $url + loose options array. Keys
      * are matched case-insensitively and may include `method`, `data`,
      * `body`, `headers` and `version`. Returns the PSR-7 response.
@@ -373,9 +482,90 @@ class Client implements \Psr\Http\Client\ClientInterface
 
     /**
      * Execute the supplied PSR-7 request and return the PSR-7 response.
+     *
+     * When no {@see RetryPolicy} is attached (the default), this performs a
+     * single transport attempt — behaviour identical to previous releases. When
+     * a policy is attached, transient failures (retryable status codes and, if
+     * enabled, transport exceptions) are retried up to the policy's
+     * max-attempts cap, spaced by exponential backoff with jitter. A
+     * `Retry-After` header on a retryable response overrides the computed delay
+     * when the policy opts in. PSR-18 semantics are preserved: a non-retryable
+     * 4xx/5xx response is returned, never thrown.
+     *
+     * @param  RequestInterface $request
+     * @return ResponseInterface
+     * @throws ClientException  When cURL cannot be initialised at all.
+     * @throws RequestException When the request itself cannot be marshalled (invalid URL, body coercion failure).
+     * @throws NetworkException When cURL reports a transport-level failure and either retries are disabled or the cap is reached.
+     */
+    public function sendRequest(RequestInterface $request): ResponseInterface
+    {
+        $policy = $this->retryPolicy;
+        if ($policy === null) {
+            return $this->transport($request);
+        }
+
+        $backoff = new Backoff($policy, $this->jitterRandomizer);
+        $attempt = 0;
+
+        while (true) {
+            $attempt++;
+            try {
+                $response = $this->transport($request);
+            } catch (NetworkExceptionInterface $e) {
+                // Transport-level failure (DNS, TCP, TLS, timeout). Retry only
+                // when the policy permits it and the attempt cap is not reached;
+                // otherwise rethrow so the caller sees the original exception.
+                if (!$policy->isRetryOnException() || !$policy->shouldRetry($attempt)) {
+                    throw $e;
+                }
+                $this->sleeper->sleep($backoff->delayFor($attempt));
+                continue;
+            }
+
+            // A successful transport call with a non-retryable status — or one
+            // that has exhausted the attempt budget — is the final answer.
+            if (!$policy->isRetryableStatus($response->getStatusCode())
+                || !$policy->shouldRetry($attempt)) {
+                return $response;
+            }
+
+            $this->sleeper->sleep($this->retryDelay($policy, $backoff, $response, $attempt));
+        }
+    }
+
+    /**
+     * Resolve the delay before the next retry for a retryable *response*:
+     * honour a parseable `Retry-After` header when the policy opts in,
+     * otherwise fall back to the jittered exponential backoff for this attempt.
+     *
+     * @param  RetryPolicy       $policy
+     * @param  Backoff           $backoff
+     * @param  ResponseInterface $response
+     * @param  int               $attempt 1-based attempt index just completed.
+     * @return float Delay in seconds.
+     */
+    private function retryDelay(RetryPolicy $policy, Backoff $backoff, ResponseInterface $response, int $attempt): float
+    {
+        if ($policy->isRespectRetryAfter()) {
+            $retryAfter = RetryAfter::fromResponse($response);
+            if ($retryAfter !== null) {
+                return $retryAfter;
+            }
+        }
+
+        return $backoff->delayFor($attempt);
+    }
+
+    /**
+     * Perform a single cURL transport attempt for $request and return the
+     * PSR-7 response. This is the retry-free primitive that
+     * {@see Client::sendRequest()} orchestrates; subclasses and tests can
+     * override it to simulate transport behaviour without touching the network.
+     *
      * The response body is wrapped in a php://temp-backed Stream so large
-     * payloads spill to disk (cURL's 2 MiB threshold) instead of pinning
-     * the full response into the process's resident memory.
+     * payloads spill to disk (cURL's 2 MiB threshold) instead of pinning the
+     * full response into the process's resident memory.
      *
      * @param  RequestInterface $request
      * @return ResponseInterface
@@ -383,7 +573,7 @@ class Client implements \Psr\Http\Client\ClientInterface
      * @throws RequestException When the request itself cannot be marshalled (invalid URL, body coercion failure).
      * @throws NetworkException When cURL reports a transport-level failure (DNS, TCP, TLS, timeout, ...).
      */
-    public function sendRequest(RequestInterface $request): ResponseInterface
+    protected function transport(RequestInterface $request): ResponseInterface
     {
         $response = [
             'body'      => '',

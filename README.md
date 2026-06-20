@@ -146,6 +146,51 @@ $response = $client->post('https://api.example.com/users', '{"name":"Ada"}', [
 
 PSR-18 contract is honoured: **4xx/5xx responses are returned, not thrown**. Only transport failures raise `Psr\Http\Client\NetworkExceptionInterface`.
 
+#### Resilience: retry with exponential backoff + jitter
+
+The client is single-attempt by default. Attach a `RetryPolicy` to opt in to
+automatic retries of *transient* failures — connection errors, timeouts and the
+retryable HTTP status set (`408, 425, 429, 500, 502, 503, 504` by default) — with
+exponential backoff, bounded jitter, a hard max-attempts cap, and `Retry-After`
+support:
+
+```php
+use InitPHP\HTTP\Client\Client;
+use InitPHP\HTTP\Client\Retry\RetryPolicy;
+
+$client = (new Client())->withRetryPolicy(new RetryPolicy(
+    maxAttempts: 4,        // 1 initial try + up to 3 retries
+    baseDelay:   0.1,      // first backoff interval, seconds
+    multiplier:  2.0,      // 0.1s, 0.2s, 0.4s, ...
+    maxDelay:    30.0,     // cap on any single interval
+    jitter:      0.5,      // up to 50% random reduction (anti thundering-herd)
+));
+
+// Every verb helper inherits the policy transparently.
+$response = $client->get('https://api.example.com/flaky');
+```
+
+Behaviour and backward-compatibility:
+
+- **Default (no policy) = exactly one attempt** — identical to previous releases.
+- A non-retryable `4xx`/`5xx` response is still **returned, never thrown** (PSR-18).
+- A retryable response that exhausts the attempt cap is returned as-is (the last
+  response); a transport exception that exhausts the cap is re-thrown.
+- A parseable `Retry-After` header (delay-seconds or HTTP-date) on a retryable
+  response **overrides** the computed backoff unless you disable it.
+- The retryable status set, whether transport exceptions are retried, and
+  `Retry-After` handling are all configurable on `RetryPolicy`.
+
+```php
+// Customise: only retry 429/503, never on transport exceptions, ignore Retry-After.
+new RetryPolicy(
+    maxAttempts:          5,
+    retryOnException:     false,
+    retryableStatusCodes: [429, 503],
+    respectRetryAfter:    false,
+);
+```
+
 ### Emitting a response (SAPI)
 
 ```php
