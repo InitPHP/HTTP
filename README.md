@@ -2,6 +2,7 @@
 
 Standards-compliant **PSR-7** message, **PSR-17** factory, **PSR-18** client and SAPI response **emitter** for PHP 7.4+.
 
+[![Designed & Maintained with Tan](https://www.muhammetsafak.com.tr/badges/designed-maintained-with-tan.svg)](https://www.muhammetsafak.com.tr/en/tan/)
 [![Latest Stable Version](https://poser.pugx.org/initphp/http/v)](https://packagist.org/packages/initphp/http)
 [![Total Downloads](https://poser.pugx.org/initphp/http/downloads)](https://packagist.org/packages/initphp/http)
 [![License](https://poser.pugx.org/initphp/http/license)](https://packagist.org/packages/initphp/http)
