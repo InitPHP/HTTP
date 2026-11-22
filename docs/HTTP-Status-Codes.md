@@ -1,6 +1,6 @@
 # HTTP Status Codes
 
-The `Response::PHRASES` table maps status codes to their IANA-registered reason phrases. When you construct a `Response` without an explicit reason, the corresponding phrase from this table is used.
+`InitPHP\HTTP\Message\Response::PHRASES` is the lookup table the constructor consults when you don't supply an explicit reason phrase:
 
 | Code | Reason Phrase                       |
 |------|-------------------------------------|
@@ -69,7 +69,7 @@ The `Response::PHRASES` table maps status codes to their IANA-registered reason 
 | 510  | Not Extended                        |
 | 511  | Network Authentication Required     |
 
-## Custom phrases
+## Selecting a custom phrase
 
 Pass a reason explicitly when you need something off-canon:
 
@@ -78,12 +78,23 @@ $response = new Response(418, [], null, '1.1', "I'm a coffee maker, actually");
 $response = $response->withStatus(599, 'Network connect timeout error');
 ```
 
-Status codes are validated against the inclusive range 100..599. Anything else raises `InvalidArgumentException`.
+## Validation
+
+Status codes are validated against the inclusive range `100..599` by both the constructor (indirectly, via `setStatusCode`) and by `withStatus()`. Anything else raises `InvalidArgumentException`:
+
+```php
+new Response(600);  // InvalidArgumentException
+new Response(99);   // InvalidArgumentException
+```
 
 ## Codes outside the table
 
-Codes that aren't in the table get an empty reason phrase. Many proxies and clients are fine with that; some refuse to parse a status line without a phrase. Pick a phrase yourself if you're emitting a non-standard code:
+Codes that aren't in the table get an empty reason phrase. Many proxies and clients tolerate that; some refuse to parse a status line without a phrase. Pick a phrase yourself if you're emitting a non-standard code:
 
 ```php
 $response = (new Response())->withStatus(599, 'Network connect timeout error');
 ```
+
+## v2 → v3 note: 500 phrase typo fix
+
+The 500 entry was previously stored as `'Internal ServerRequest Error'` — a copy-paste typo. v3 emits the canonical `'Internal Server Error'`. Log-aggregation rules that matched on the literal old string will miss new responses; update them or use the status code instead. See [Migration Guide](Migration-Guide.md).

@@ -236,17 +236,17 @@ Each facade lazily resolves a singleton on first call; subsequent calls return t
 
 ## Documentation
 
-In-depth guides live under [`docs/`](docs/):
+In-depth guides live under [`docs/`](docs/Home.md):
 
-- [Getting Started](docs/getting-started.md)
-- PSR-7 — [Messages](docs/psr7/messages.md), [ServerRequest](docs/psr7/server-request.md), [Streams](docs/psr7/streams.md), [Uri](docs/psr7/uri.md), [Uploaded Files](docs/psr7/uploaded-files.md)
-- PSR-17 — [Factory](docs/psr17/factory.md)
-- PSR-18 — [Client](docs/psr18/client.md), [Exceptions](docs/psr18/exceptions.md), [Configuration](docs/psr18/configuration.md)
-- Emitter — [Basics](docs/emitter/basic-emission.md), [Chunked bodies](docs/emitter/chunked-bodies.md), [Content-Range](docs/emitter/content-range.md)
-- Facades — [Overview](docs/facades/overview.md), [Customisation](docs/facades/customization.md)
-- Recipes — [JSON responses](docs/recipes/json-response.md), [Redirects](docs/recipes/redirect.md), [File uploads](docs/recipes/file-upload.md), [Streaming large files](docs/recipes/streaming-large-files.md), [Proxying requests](docs/recipes/proxying-requests.md)
-- [HTTP status code reference](docs/reference/http-status-codes.md)
-- [Upgrade guide (2.x → 3.x)](docs/upgrade-guide.md)
+- [Getting Started](docs/Quick-Start.md)
+- PSR-7 — [Messages](docs/PSR-7-Overview.md), [ServerRequest](docs/Server-Request.md), [Streams](docs/Stream.md), [Uri](docs/Uri.md), [Uploaded Files](docs/Uploaded-File.md)
+- PSR-17 — [Factory](docs/PSR-17-Factory.md)
+- PSR-18 — [Client](docs/PSR-18-Client.md), [Exceptions](docs/Client-Exceptions.md), [Configuration](docs/Client-Configuration.md)
+- Emitter — [Basics](docs/Emitter.md), [Chunked bodies](docs/Chunked-Bodies.md), [Content-Range](docs/Content-Range.md)
+- Facades — [Overview](docs/Facades.md), [Customisation](docs/Facades.md#customising-the-underlying-instance)
+- Recipes — [JSON responses](docs/Recipe-JSON-Response.md), [Redirects](docs/Recipe-Redirect.md), [File uploads](docs/Recipe-File-Upload.md), [Streaming large files](docs/Recipe-Streaming-Large-Files.md), [Proxying requests](docs/Recipe-Proxying-Requests.md)
+- [HTTP status code reference](docs/HTTP-Status-Codes.md)
+- [Upgrade guide (2.x → 3.x)](docs/Migration-Guide.md)
 
 ## PSR Compliance
 
@@ -271,7 +271,7 @@ Version 3.0 is a breaking release. The highlights:
 - `Client` now defaults to a 30 s request timeout and 10 s connect timeout. Pass `->withTimeout(0)` if you need the legacy "no timeout" behaviour.
 - The misspelled facade trait/interface names `Facadeble[Interface]` are now `Facadable[Interface]`; the old names remain as `@deprecated` aliases and will be removed in 4.0.
 
-See [`docs/upgrade-guide.md`](docs/upgrade-guide.md) for the full migration walk-through and a copy-pasteable code-mod list.
+See [`docs/Migration-Guide.md`](docs/Migration-Guide.md) for the full migration walk-through and a copy-pasteable code-mod list.
 
 ## Contributing
 
