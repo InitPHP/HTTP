@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Helpers;
@@ -62,7 +63,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             ['Content-Type' => 'text/plain'],
-            'raw-body'
+            'raw-body',
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -83,7 +84,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             [],
-            ['k' => 'v', 'n' => 42]
+            ['k' => 'v', 'n' => 42],
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -102,7 +103,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             ['Content-Type' => 'application/vnd.custom+json'],
-            ['k' => 'v']
+            ['k' => 'v'],
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -122,7 +123,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             ['Content-Type' => 'text/plain'],
-            $body
+            $body,
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -142,7 +143,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             [],
-            $body
+            $body,
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -178,7 +179,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             ['Content-Type' => 'text/plain'],
-            $body
+            $body,
         );
         $data = json_decode((string) $response->getBody(), true);
 
@@ -195,7 +196,7 @@ final class SendRequestTest extends TestCase
             'POST',
             self::fixtureBaseUrl() . '/echo',
             ['Content-Type' => 'text/plain'],
-            $stream
+            $stream,
         );
         $data = json_decode((string) $response->getBody(), true);
 

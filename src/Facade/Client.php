@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Client.php
  *
@@ -11,7 +12,6 @@
  */
 
 declare(strict_types=1);
-
 
 namespace InitPHP\HTTP\Facade;
 
@@ -40,7 +40,6 @@ use Psr\Http\Message\ResponseInterface;
  */
 final class Client implements FacadableInterface
 {
-
     use Facadable;
 
     private static \InitPHP\HTTP\Client\Client $instance;

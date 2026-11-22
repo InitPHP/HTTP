@@ -1,4 +1,5 @@
 <?php
+
 /**
  * EmitHeaderException.php
  *
@@ -21,6 +22,4 @@ namespace InitPHP\HTTP\Emitter\Exceptions;
  * emitting the response would silently break the contract with the
  * client.
  */
-class EmitHeaderException extends \RuntimeException
-{
-}
+class EmitHeaderException extends \RuntimeException {}

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Emitter;
@@ -110,22 +111,22 @@ final class EmitterStrictModeTest extends TestCase
         $exceptionClass = EmitHeaderException::class;
 
         $script = <<<PHP
-<?php
-require {$this->phpQuote($autoload)};
-echo 'force-flush';
-if (!headers_sent()) {
-    fwrite(STDERR, 'headers_sent stayed false');
-    exit(2);
-}
-\$emitter = new \\{$emitterClass}(true);
-\$response = new \\{$responseClass}(200, [], 'body');
-try {
-    \$emitter->emit(\$response);
-    exit(1);
-} catch (\\{$exceptionClass} \$e) {
-    exit(0);
-}
-PHP;
+            <?php
+            require {$this->phpQuote($autoload)};
+            echo 'force-flush';
+            if (!headers_sent()) {
+                fwrite(STDERR, 'headers_sent stayed false');
+                exit(2);
+            }
+            \$emitter = new \\{$emitterClass}(true);
+            \$response = new \\{$responseClass}(200, [], 'body');
+            try {
+                \$emitter->emit(\$response);
+                exit(1);
+            } catch (\\{$exceptionClass} \$e) {
+                exit(0);
+            }
+            PHP;
 
         $tmp = tempnam(sys_get_temp_dir(), 'init-emitter-');
         self::assertIsString($tmp);
@@ -144,7 +145,7 @@ PHP;
             self::assertSame(
                 0,
                 $exitCode,
-                'Strict-mode emitter did not raise EmitHeaderException after stdout flush. Subprocess output: ' . implode("\n", $output)
+                'Strict-mode emitter did not raise EmitHeaderException after stdout flush. Subprocess output: ' . implode("\n", $output),
             );
         } finally {
             @unlink($tmp);

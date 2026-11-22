@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ClientException.php
  *
@@ -20,6 +21,4 @@ namespace InitPHP\HTTP\Client\Exceptions;
  * thrown by this client (including the more specific {@see NetworkException}
  * and {@see RequestException}) with a single catch clause.
  */
-class ClientException extends \Exception implements \Psr\Http\Client\ClientExceptionInterface
-{
-}
+class ClientException extends \Exception implements \Psr\Http\Client\ClientExceptionInterface {}

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Message;
@@ -28,14 +29,14 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             [],
             [],
-            []
+            [],
         );
         $b = ServerRequest::createFromGlobals(
             ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/two', 'HTTP_HOST' => 'b.test'],
             [],
             [],
             [],
-            []
+            [],
         );
 
         self::assertNotSame($a, $b, 'createFromGlobals must compute fresh instances');
@@ -160,7 +161,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             ['q' => 'phpunit', 'limit' => '50'],
             [],
             ['SESSID' => 'abc'],
-            []
+            [],
         );
 
         self::assertSame(['q' => 'phpunit', 'limit' => '50'], $req->getQueryParams());
@@ -174,7 +175,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             [],
             [],
-            []
+            [],
         );
 
         self::assertSame('2', $req->getProtocolVersion());
@@ -200,7 +201,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             ['name' => 'Ada', 'email' => 'ada@example.com'],
             [],
-            []
+            [],
         );
 
         self::assertSame(['name' => 'Ada', 'email' => 'ada@example.com'], $req->getParsedBody());
@@ -217,7 +218,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             ['title' => 'avatar'],
             [],
-            []
+            [],
         );
 
         self::assertSame(['title' => 'avatar'], $req->getParsedBody());
@@ -234,7 +235,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             ['ignored' => 'value'],
             [],
-            []
+            [],
         );
 
         self::assertNull($req->getParsedBody());
@@ -247,7 +248,7 @@ final class ServerRequestCreateFromGlobalsTest extends TestCase
             [],
             ['ignored' => 'value'],
             [],
-            []
+            [],
         );
 
         self::assertNull($req->getParsedBody());

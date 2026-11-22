@@ -1,4 +1,5 @@
 <?php
+
 /**
  * FacadebleInterface.php
  *
@@ -19,6 +20,4 @@ namespace InitPHP\HTTP\Facade\Interfaces;
  *             Use {@see FacadableInterface} instead; this shim will be
  *             removed in the next major version.
  */
-interface FacadebleInterface extends FacadableInterface
-{
-}
+interface FacadebleInterface extends FacadableInterface {}

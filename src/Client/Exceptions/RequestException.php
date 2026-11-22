@@ -1,4 +1,5 @@
 <?php
+
 /**
  * RequestException.php
  *
@@ -25,7 +26,6 @@ use Psr\Http\Message\RequestInterface;
  */
 class RequestException extends ClientException implements \Psr\Http\Client\RequestExceptionInterface
 {
-
     private RequestInterface $request;
 
     /**
@@ -34,7 +34,7 @@ class RequestException extends ClientException implements \Psr\Http\Client\Reque
      * @param  int              $code     Numeric error code (typically passed through from the originating exception).
      * @param  \Throwable|null  $previous Underlying exception, if any.
      */
-    public function __construct(RequestInterface $request, $message = "", $code = 0, \Throwable $previous = null)
+    public function __construct(RequestInterface $request, $message = '', $code = 0, ?\Throwable $previous = null)
     {
         $this->request = $request;
         parent::__construct($message, $code, $previous);

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * NetworkException.php
  *
@@ -24,7 +25,6 @@ use Psr\Http\Message\RequestInterface;
  */
 class NetworkException extends ClientException implements \Psr\Http\Client\NetworkExceptionInterface
 {
-
     private RequestInterface $request;
 
     /**
@@ -33,7 +33,7 @@ class NetworkException extends ClientException implements \Psr\Http\Client\Netwo
      * @param  int              $code     Transport error code (typically the cURL errno).
      * @param  \Throwable|null  $previous Underlying exception, if any.
      */
-    public function __construct(RequestInterface $request, $message = "", $code = 0, \Throwable $previous = null)
+    public function __construct(RequestInterface $request, $message = '', $code = 0, ?\Throwable $previous = null)
     {
         $this->request = $request;
         parent::__construct($message, $code, $previous);

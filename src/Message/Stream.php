@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Stream.php
  *
@@ -14,35 +15,34 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \Psr\Http\Message\StreamInterface;
-use \Throwable;
-use \RuntimeException;
-use \InvalidArgumentException;
+use InvalidArgumentException;
+use Psr\Http\Message\StreamInterface;
+use RuntimeException;
 
-use const SEEK_SET;
-use const SEEK_CUR;
-use const SEEK_END;
-
-use function is_string;
-use function in_array;
-use function is_scalar;
-use function is_resource;
-use function substr;
-use function strlen;
+use function clearstatcache;
 use function error_get_last;
-use function var_export;
-use function stream_get_meta_data;
-use function stream_get_contents;
-use function fopen;
-use function fwrite;
 use function fclose;
+use function feof;
+use function fopen;
+use function fread;
+use function fseek;
 use function fstat;
 use function ftell;
-use function feof;
+use function fwrite;
+use function in_array;
+use function is_resource;
+use function is_scalar;
+use function is_string;
 use function rewind;
-use function fseek;
-use function fread;
-use function clearstatcache;
+use function stream_get_contents;
+use function stream_get_meta_data;
+use function strlen;
+use function substr;
+use function var_export;
+
+use const SEEK_CUR;
+use const SEEK_END;
+use const SEEK_SET;
 
 /**
  * PSR-7 StreamInterface implementation supporting three backends in a
@@ -226,21 +226,21 @@ class Stream implements StreamInterface
      */
     public function init($body = null, ?string $target = 'php://temp'): StreamInterface
     {
-        if(in_array($target, ['php://temp', 'php://memory', null], true) === FALSE){
+        if (in_array($target, ['php://temp', 'php://memory', null], true) === false) {
             throw new InvalidArgumentException('The target for the stream can only be "php://temp", "php://memory" or NULL.');
         }
         $this->target = $target;
-        if($body === null){
+        if ($body === null) {
             $body = '';
         }
-        if($body instanceof StreamInterface){
-            if($body->isSeekable()){
+        if ($body instanceof StreamInterface) {
+            if ($body->isSeekable()) {
                 $body->rewind();
             }
             $body = $body->getContents();
         }
         // Resources are always accepted regardless of $target.
-        if(is_resource($body)){
+        if (is_resource($body)) {
             $this->stream = $body;
             $meta = stream_get_meta_data($this->stream);
             $this->seekable = $meta['seekable'] && fseek($this->stream, 0, SEEK_CUR) === 0;
@@ -248,11 +248,11 @@ class Stream implements StreamInterface
             $this->writable = isset(self::READ_WRITE_HASH['write'][$meta['mode']]);
             return $this;
         }
-        if($this->target === null){
-            if(!is_scalar($body)){
-                throw new InvalidArgumentException("The parameter \$body must be a string.");
+        if ($this->target === null) {
+            if (!is_scalar($body)) {
+                throw new InvalidArgumentException('The parameter $body must be a string.');
             }
-            $this->stream = (string)$body;
+            $this->stream = (string) $body;
             $this->seek = 0;
             $this->size = strlen($this->stream);
             $this->readable = true;
@@ -260,12 +260,12 @@ class Stream implements StreamInterface
             $this->seekable = true;
             return $this;
         }
-        if(is_string($body)){
+        if (is_string($body)) {
             $resource = @fopen($this->target, 'w+b');
-            if($resource === false){
+            if ($resource === false) {
                 throw new RuntimeException(sprintf('Unable to open stream "%s": %s', $this->target, error_get_last()['message'] ?? ''));
             }
-            if($body !== ''){
+            if ($body !== '') {
                 fwrite($resource, $body);
                 fseek($resource, 0);
             }
@@ -276,7 +276,7 @@ class Stream implements StreamInterface
             $this->writable = isset(self::READ_WRITE_HASH['write'][$meta['mode']]);
             return $this;
         }
-        throw new InvalidArgumentException("The parameter \$body must be a string or a resource.");
+        throw new InvalidArgumentException('The parameter $body must be a string or a resource.');
     }
 
     /**
@@ -287,8 +287,8 @@ class Stream implements StreamInterface
      */
     public function close(): void
     {
-        if(isset($this->stream)){
-            if(is_resource($this->stream)){
+        if (isset($this->stream)) {
+            if (is_resource($this->stream)) {
                 fclose($this->stream);
             }
             unset($this->stream);
@@ -311,7 +311,7 @@ class Stream implements StreamInterface
      */
     public function detach()
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             return null;
         }
         $res = $this->stream;
@@ -332,20 +332,20 @@ class Stream implements StreamInterface
      */
     public function getSize(): ?int
     {
-        if($this->size !== null){
+        if ($this->size !== null) {
             return $this->size;
         }
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             return null;
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             return $this->size = strlen($this->stream);
         }
-        if(($uri = $this->getUri())){
+        if (($uri = $this->getUri())) {
             clearstatcache(true, $uri);
         }
         $stats = fstat($this->stream);
-        if(isset($stats['size'])){
+        if (isset($stats['size'])) {
             return $this->size = $stats['size'];
         }
         return null;
@@ -359,13 +359,13 @@ class Stream implements StreamInterface
      */
     public function tell(): int
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             throw new RuntimeException('Stream is detached');
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             return $this->seek;
         }
-        if(($result = @ftell($this->stream)) === FALSE){
+        if (($result = @ftell($this->stream)) === false) {
             throw new RuntimeException('Unable to determine stream position: ' . (error_get_last()['message'] ?? ''));
         }
         return $result;
@@ -379,11 +379,11 @@ class Stream implements StreamInterface
      */
     public function eof(): bool
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             return false;
         }
-        if(is_string($this->stream)){
-            if($this->size === null){
+        if (is_string($this->stream)) {
+            if ($this->size === null) {
                 $this->size = strlen($this->stream);
             }
             return $this->size <= $this->seek;
@@ -412,18 +412,18 @@ class Stream implements StreamInterface
      */
     public function seek($offset, $whence = SEEK_SET): void
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             throw new RuntimeException('Stream is detached');
         }
-        if(!$this->seekable){
+        if (!$this->seekable) {
             throw new RuntimeException('Stream is not seekable');
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             $this->str_seek($offset, $whence);
             return;
         }
-        if(-1 === fseek($this->stream, $offset, $whence)){
-            throw new RuntimeException('Unable to seek to stream position "'.$offset.'" with whence ' . var_export($whence, true));
+        if (-1 === fseek($this->stream, $offset, $whence)) {
+            throw new RuntimeException('Unable to seek to stream position "' . $offset . '" with whence ' . var_export($whence, true));
         }
     }
 
@@ -461,13 +461,13 @@ class Stream implements StreamInterface
      */
     public function write($string): int
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             throw new RuntimeException('Stream is detached');
         }
-        if(!$this->writable){
+        if (!$this->writable) {
             throw new RuntimeException('Cannot write to a non-writable stream');
         }
-        if(!is_string($string)){
+        if (!is_string($string)) {
             throw new InvalidArgumentException('Only strings can be written to the stream.');
         }
         if (is_string($this->stream)) {
@@ -492,7 +492,7 @@ class Stream implements StreamInterface
             return $written;
         }
         $this->size = null;
-        if(($result = @fwrite($this->stream, $string)) === FALSE){
+        if (($result = @fwrite($this->stream, $string)) === false) {
             throw new RuntimeException('Unable to write to stream: ' . (error_get_last()['message'] ?? ''));
         }
         return $result;
@@ -518,18 +518,18 @@ class Stream implements StreamInterface
      */
     public function read($length): string
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             throw new RuntimeException('Stream is detached');
         }
-        if(!$this->readable){
+        if (!$this->readable) {
             throw new RuntimeException('Cannot read from non-readable stream');
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             $res = substr($this->stream, $this->seek, $length);
             $this->seek += $length;
             return $res;
         }
-        if(($result = @fread($this->stream, $length)) === FALSE){
+        if (($result = @fread($this->stream, $length)) === false) {
             throw new RuntimeException('Unable to read from stream: ' . (error_get_last()['message'] ?? ''));
         }
         return $result;
@@ -544,13 +544,13 @@ class Stream implements StreamInterface
      */
     public function getContents(): string
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             throw new RuntimeException('Stream is detached');
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             return $this->stream;
         }
-        if(($res = @stream_get_contents($this->stream)) === FALSE){
+        if (($res = @stream_get_contents($this->stream)) === false) {
             throw new RuntimeException('Unable to read stream content: ' . (error_get_last()['message'] ?? ''));
         }
         return $res;
@@ -565,19 +565,19 @@ class Stream implements StreamInterface
      */
     public function getMetadata($key = null)
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             return $key ? null : [];
         }
-        if(is_string($this->stream)){
+        if (is_string($this->stream)) {
             $data = [
                 'uri'       => null,
                 'seekable'  => false,
-                'eof'       => $this->size === $this->seek
+                'eof'       => $this->size === $this->seek,
             ];
-        }else{
+        } else {
             $data = stream_get_meta_data($this->stream);
         }
-        if($key === null){
+        if ($key === null) {
             return $data;
         }
         return $data[$key] ?? null;
@@ -618,7 +618,7 @@ class Stream implements StreamInterface
      */
     protected function getUri()
     {
-        if($this->uri === null){
+        if ($this->uri === null) {
             $this->uri = $this->getMetadata('uri') ?? false;
         }
         return $this->uri === false ? null : $this->uri;
@@ -666,25 +666,25 @@ class Stream implements StreamInterface
      */
     private function str_seek($offset, $whence = SEEK_SET)
     {
-        if($this->size === null){
+        if ($this->size === null) {
             $this->size = strlen($this->stream);
         }
-        if($whence === SEEK_SET){
-            if($offset > $this->size){
+        if ($whence === SEEK_SET) {
+            if ($offset > $this->size) {
                 $offset = $this->size;
             }
             $this->seek = $offset;
             return;
         }
-        if($whence === SEEK_CUR){
+        if ($whence === SEEK_CUR) {
             $this->seek += $offset;
         }
-        if($whence === SEEK_END){
+        if ($whence === SEEK_END) {
             $this->seek = $this->size + $offset;
         }
-        if($this->seek < 0){
+        if ($this->seek < 0) {
             $this->seek = 0;
-        }elseif($this->seek > $this->size){
+        } elseif ($this->seek > $this->size) {
             $this->seek = $this->size;
         }
     }

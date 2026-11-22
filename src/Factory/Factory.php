@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Factory.php
  *
@@ -14,30 +15,32 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Factory;
 
-use \RuntimeException;
-use \InvalidArgumentException;
-use \InitPHP\HTTP\Message\{Request,
+use InitPHP\HTTP\Message\{Request,
     Response,
     ServerRequest,
     Stream,
     UploadedFile,
     Uri};
-use \Psr\Http\Message\{RequestFactoryInterface,
+use InvalidArgumentException;
+use Psr\Http\Message\{
+    RequestFactoryInterface,
     RequestInterface,
+    ResponseFactoryInterface,
     ResponseInterface,
+    ServerRequestFactoryInterface,
     ServerRequestInterface,
+    StreamFactoryInterface,
+    StreamInterface,
+    UploadedFileFactoryInterface,
     UploadedFileInterface,
     UriFactoryInterface,
-    UploadedFileFactoryInterface,
-    StreamFactoryInterface,
-    ServerRequestFactoryInterface,
-    ResponseFactoryInterface,
-    StreamInterface,
-    UriInterface};
+    UriInterface
+};
+use RuntimeException;
 
-use function in_array;
-use function fopen;
 use function error_get_last;
+use function fopen;
+use function in_array;
 
 /**
  * PSR-17 factory bundle. A single class implements every PSR-17 factory
@@ -48,7 +51,6 @@ use function error_get_last;
  */
 class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedFileFactoryInterface, StreamFactoryInterface, ServerRequestFactoryInterface, ResponseFactoryInterface
 {
-
     /**
      * Build a fresh PSR-7 Request.
      *
@@ -115,14 +117,14 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
      */
     public function createStreamFromFile(string $filename, string $mode = 'r'): StreamInterface
     {
-        if($filename === ''){
+        if ($filename === '') {
             throw new RuntimeException('Path cannot be empty');
         }
-        if($mode === '' || in_array($mode[0], ['r', 'w', 'a', 'x', 'c'], true) === FALSE){
+        if ($mode === '' || in_array($mode[0], ['r', 'w', 'a', 'x', 'c'], true) === false) {
             throw new InvalidArgumentException(sprintf('The mode "%s" is invalid.', $mode));
         }
 
-        if(FALSE === $resource = @fopen($filename, $mode)){
+        if (false === $resource = @fopen($filename, $mode)) {
             throw new RuntimeException(sprintf('The file "%s" cannot be opened: %s', $filename, error_get_last()['message'] ?? ''));
         }
 
@@ -138,7 +140,7 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
      */
     public function createStreamFromResource($resource): StreamInterface
     {
-        if($resource instanceof StreamInterface){
+        if ($resource instanceof StreamInterface) {
             return $resource;
         }
 
@@ -157,9 +159,9 @@ class Factory implements RequestFactoryInterface, UriFactoryInterface, UploadedF
      * @return UploadedFileInterface
      * @throws InvalidArgumentException When the stream cannot be wrapped (e.g. unusable handle).
      */
-    public function createUploadedFile(StreamInterface $stream, int $size = null, int $error = \UPLOAD_ERR_OK, string $clientFilename = null, string $clientMediaType = null): UploadedFileInterface
+    public function createUploadedFile(StreamInterface $stream, ?int $size = null, int $error = \UPLOAD_ERR_OK, ?string $clientFilename = null, ?string $clientMediaType = null): UploadedFileInterface
     {
-        if($size === null){
+        if ($size === null) {
             $size = $stream->getSize();
         }
 

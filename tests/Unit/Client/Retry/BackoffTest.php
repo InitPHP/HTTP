@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Client\Retry;
@@ -53,8 +54,8 @@ final class BackoffTest extends TestCase
         $policy = new RetryPolicy(5, 1.0, 2.0, 100.0, 0.5);
 
         // randomizer = 0.0 collapses to the floor; 1.0 (clamped just under) to base.
-        $floorBackoff = new Backoff($policy, static fn (): float => 0.0);
-        $ceilBackoff  = new Backoff($policy, static fn (): float => 0.999999);
+        $floorBackoff = new Backoff($policy, static fn(): float => 0.0);
+        $ceilBackoff  = new Backoff($policy, static fn(): float => 0.999999);
 
         // attempt 2 => base 2.0; envelope is [1.0, 2.0].
         self::assertEqualsWithDelta(1.0, $floorBackoff->delayFor(2), 1e-9);
@@ -66,8 +67,8 @@ final class BackoffTest extends TestCase
     {
         $policy = new RetryPolicy(3, 1.0, 2.0, 100.0, 0.5);
         // A randomizer returning out-of-range values must not break the bounds.
-        $high = new Backoff($policy, static fn (): float => 5.0);
-        $low  = new Backoff($policy, static fn (): float => -5.0);
+        $high = new Backoff($policy, static fn(): float => 5.0);
+        $low  = new Backoff($policy, static fn(): float => -5.0);
 
         $delayHigh = $high->delayFor(1); // base 1.0 => envelope [0.5, 1.0]
         $delayLow  = $low->delayFor(1);

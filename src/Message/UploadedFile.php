@@ -1,4 +1,5 @@
 <?php
+
 /**
  * UploadedFile.php
  *
@@ -14,27 +15,27 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \RuntimeException;
-use \InvalidArgumentException;
-use \Psr\Http\Message\{UploadedFileInterface, StreamInterface};
+use InvalidArgumentException;
+use Psr\Http\Message\{StreamInterface, UploadedFileInterface};
+use RuntimeException;
 
-use const UPLOAD_ERR_OK;
-use const UPLOAD_ERR_INI_SIZE;
-use const UPLOAD_ERR_FORM_SIZE;
-use const UPLOAD_ERR_PARTIAL;
-use const UPLOAD_ERR_NO_FILE;
-use const UPLOAD_ERR_NO_TMP_DIR;
+use function error_get_last;
+use function fopen;
+use function is_resource;
+use function is_string;
+use function move_uploaded_file;
+use function rename;
+use function sprintf;
+
+use const PHP_SAPI;
 use const UPLOAD_ERR_CANT_WRITE;
 use const UPLOAD_ERR_EXTENSION;
-use const PHP_SAPI;
-
-use function is_string;
-use function is_resource;
-use function fopen;
-use function sprintf;
-use function error_get_last;
-use function rename;
-use function move_uploaded_file;
+use const UPLOAD_ERR_FORM_SIZE;
+use const UPLOAD_ERR_INI_SIZE;
+use const UPLOAD_ERR_NO_FILE;
+use const UPLOAD_ERR_NO_TMP_DIR;
+use const UPLOAD_ERR_OK;
+use const UPLOAD_ERR_PARTIAL;
 
 /**
  * PSR-7 UploadedFileInterface implementation. Wraps a single uploaded file
@@ -47,7 +48,6 @@ use function move_uploaded_file;
  */
 class UploadedFile implements UploadedFileInterface
 {
-
     protected const ERRORS = [
         UPLOAD_ERR_OK           => 1,
         UPLOAD_ERR_INI_SIZE     => 1,
@@ -110,18 +110,18 @@ class UploadedFile implements UploadedFileInterface
      */
     protected function init($streamOrFile)
     {
-        if($this->error !== UPLOAD_ERR_OK){
+        if ($this->error !== UPLOAD_ERR_OK) {
             return;
         }
-        if(is_string($streamOrFile) && !empty($streamOrFile)){
+        if (is_string($streamOrFile) && !empty($streamOrFile)) {
             $this->file = $streamOrFile;
             return;
         }
-        if(is_resource($streamOrFile)){
+        if (is_resource($streamOrFile)) {
             $this->stream = new Stream($streamOrFile);
             return;
         }
-        if($streamOrFile instanceof StreamInterface){
+        if ($streamOrFile instanceof StreamInterface) {
             $this->stream = $streamOrFile;
             return;
         }
@@ -139,10 +139,10 @@ class UploadedFile implements UploadedFileInterface
     public function getStream(): StreamInterface
     {
         $this->throwHasErrorOrMoved();
-        if($this->stream instanceof StreamInterface){
+        if ($this->stream instanceof StreamInterface) {
             return $this->stream;
         }
-        if(($resource = @fopen($this->file, 'r')) === FALSE){
+        if (($resource = @fopen($this->file, 'r')) === false) {
             throw new RuntimeException(sprintf('The file "%s" cannot be opened: %s', $this->file, error_get_last()['message'] ?? ''));
         }
         return new Stream($resource);
@@ -162,20 +162,20 @@ class UploadedFile implements UploadedFileInterface
     public function moveTo($targetPath): void
     {
         $this->throwHasErrorOrMoved();
-        if(!is_string($targetPath) || $targetPath === ''){
+        if (!is_string($targetPath) || $targetPath === '') {
             throw new InvalidArgumentException('Invalid path provided for move operation; must be a non-empty string');
         }
-        if($this->file !== null){
+        if ($this->file !== null) {
             $this->moved = ('cli' === PHP_SAPI) ? @rename($this->file, $targetPath) : @move_uploaded_file($this->file, $targetPath);
-            if($this->moved === FALSE){
+            if ($this->moved === false) {
                 throw new RuntimeException(sprintf('Uploaded file could not be moved to "%s": %s', $targetPath, error_get_last()['message'] ?? ''));
             }
-        }else{
+        } else {
             $stream = $this->getStream();
-            if($stream->isSeekable()){
+            if ($stream->isSeekable()) {
                 $stream->rewind();
             }
-            if(($resource = @fopen($targetPath, 'w')) === FALSE){
+            if (($resource = @fopen($targetPath, 'w')) === false) {
                 throw new RuntimeException(sprintf('The file "%s" cannot be opened: %s', $targetPath, error_get_last()['message'] ?? ''));
             }
             $dest = new Stream($resource);
@@ -251,10 +251,10 @@ class UploadedFile implements UploadedFileInterface
      */
     protected function throwHasErrorOrMoved(): void
     {
-        if($this->error !== UPLOAD_ERR_OK){
+        if ($this->error !== UPLOAD_ERR_OK) {
             throw new RuntimeException('Cannot retrieve stream due to upload error');
         }
-        if($this->moved){
+        if ($this->moved) {
             throw new RuntimeException('Cannot retrieve stream after it has already been moved');
         }
     }

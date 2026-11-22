@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Factory.php
  *
@@ -16,7 +17,7 @@ namespace InitPHP\HTTP\Facade;
 
 use InitPHP\HTTP\Facade\Interfaces\FacadableInterface;
 use InitPHP\HTTP\Facade\Traits\Facadable;
-use \Psr\Http\Message\{RequestInterface,
+use Psr\Http\Message\{RequestInterface,
     ResponseInterface,
     ServerRequestInterface,
     StreamInterface,
@@ -42,7 +43,6 @@ use \Psr\Http\Message\{RequestInterface,
  */
 final class Factory implements FacadableInterface
 {
-
     use Facadable;
 
     private static \InitPHP\HTTP\Factory\Factory $instance;

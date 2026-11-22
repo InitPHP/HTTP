@@ -1,6 +1,6 @@
 # InitPHP HTTP
 
-Standards-compliant **PSR-7** message, **PSR-17** factory, **PSR-18** client and SAPI response **emitter** for PHP 7.4+.
+Standards-compliant **PSR-7** message, **PSR-17** factory, **PSR-18** client and SAPI response **emitter** for PHP 8.2+.
 
 [![Designed & Maintained with Tan](https://muhammetsafak.com/badges/designed-maintained-with-tan.svg)](https://muhammetsafak.com/tan/)
 [![Latest Stable Version](https://poser.pugx.org/initphp/http/v)](https://packagist.org/packages/initphp/http)
@@ -65,14 +65,14 @@ Emitter::emit($response);
 
 | Component       | Minimum            |
 |-----------------|--------------------|
-| PHP             | 7.4                |
+| PHP             | 8.2                |
 | `ext-json`      | always required    |
 | `ext-curl`      | required by `InitPHP\HTTP\Client\Client` (PSR-18 transport) |
 | `psr/http-message`   | `^1.0 || ^2.0` |
 | `psr/http-factory`   | `^1.0` |
 | `psr/http-client`    | `^1.0` |
 
-Tested on PHP 7.4, 8.0, 8.1, 8.2, 8.3 and 8.4 in CI.
+Tested on PHP 8.2, 8.3, 8.4 and 8.5 in CI.
 
 ## Installation
 

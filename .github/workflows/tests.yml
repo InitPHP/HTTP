@@ -13,10 +13,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        php: ['8.2', '8.3', '8.4', '8.5']
         dependency-version: [prefer-stable]
         include:
-          - php: '7.4'
+          - php: '8.2'
             dependency-version: prefer-lowest
 
     steps:
@@ -31,9 +31,8 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      # Composer's solver picks PHPUnit 9.x and http-factory-tests 1.x on
-      # PHP < 8.1, and 10.x / 2.x on PHP >= 8.1, based on the wide ranges in
-      # composer.json. No manual narrowing required.
+      # Composer's solver picks the newest PHPUnit and http-factory-tests lines
+      # each PHP version supports, based on the ranges in composer.json.
       - name: Install dependencies
         run: composer update --${{ matrix.dependency-version }} --no-interaction --no-progress --prefer-dist
 

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * EmitBodyException.php
  *
@@ -20,6 +21,4 @@ namespace InitPHP\HTTP\Emitter\Exceptions;
  * called — emitting the response body in that situation would interleave
  * unrelated output with the HTTP body on the wire.
  */
-class EmitBodyException extends \RuntimeException
-{
-}
+class EmitBodyException extends \RuntimeException {}

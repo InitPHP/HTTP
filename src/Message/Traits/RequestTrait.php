@@ -1,4 +1,5 @@
 <?php
+
 /**
  * RequestTrait.php
  *
@@ -15,13 +16,13 @@ declare(strict_types=1);
 namespace InitPHP\HTTP\Message\Traits;
 
 use InitPHP\HTTP\Message\Stream;
-use \Psr\Http\Message\{StreamInterface, UriInterface};
+use Psr\Http\Message\{StreamInterface, UriInterface};
 
+use function array_map;
 use function in_array;
 use function is_string;
 use function preg_match;
 use function strtoupper;
-use function array_map;
 
 /**
  * Shared request-shaped behaviour for the concrete Request and ServerRequest
@@ -31,7 +32,6 @@ use function array_map;
  */
 trait RequestTrait
 {
-
     protected string $method;
 
     protected UriInterface $uri;
@@ -119,13 +119,13 @@ trait RequestTrait
      */
     public function getRequestTarget(): string
     {
-        if(isset($this->requestTarget)){
+        if (isset($this->requestTarget)) {
             return $this->requestTarget;
         }
-        if(($target = $this->uri->getPath()) === ''){
+        if (($target = $this->uri->getPath()) === '') {
             $target = '/';
         }
-        if(($query = $this->uri->getQuery()) !== ''){
+        if (($query = $this->uri->getQuery()) !== '') {
             $target .= '?' . $query;
         }
 
@@ -142,7 +142,7 @@ trait RequestTrait
      */
     public function setRequestTarget($requestTarget): self
     {
-        if(preg_match("#\s#", $requestTarget)){
+        if (preg_match("#\s#", $requestTarget)) {
             throw new \InvalidArgumentException('Invalid request target provided; cannot contain whitespace.');
         }
         $this->requestTarget = $requestTarget;
@@ -221,7 +221,7 @@ trait RequestTrait
      */
     public function setUri(UriInterface $uri, bool $preserveHost = false): self
     {
-        if($uri === $this->uri){
+        if ($uri === $this->uri) {
             return $this;
         }
         $this->uri = $uri;
@@ -254,15 +254,15 @@ trait RequestTrait
      */
     protected function updateHostFromUri()
     {
-        if(($host = $this->uri->getHost()) === ''){
+        if (($host = $this->uri->getHost()) === '') {
             return;
         }
-        if(($port = $this->uri->getPort()) !== null){
+        if (($port = $this->uri->getPort()) !== null) {
             $host .= ':' . $port;
         }
-        if(isset($this->headerNames['host'])){
+        if (isset($this->headerNames['host'])) {
             $header = $this->headerNames['host'];
-        }else{
+        } else {
             $this->headerNames['host'] = $header = 'Host';
         }
         $this->headers = [$header => [$host]] + $this->headers;
@@ -286,12 +286,12 @@ trait RequestTrait
         $this->uri = $uri;
         $this->setHeaders($headers);
         $this->protocol = $version;
-        if(!$this->hasHeader('Host')){
+        if (!$this->hasHeader('Host')) {
             $this->updateHostFromUri();
         }
-        if($body instanceof StreamInterface){
+        if ($body instanceof StreamInterface) {
             $this->stream = $body;
-        }elseif(!empty($body)){
+        } elseif (!empty($body)) {
             $this->stream = new Stream($body);
         }
     }

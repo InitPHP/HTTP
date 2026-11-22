@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Emitter.php
  *
@@ -16,21 +17,21 @@ namespace InitPHP\HTTP\Emitter;
 
 use InitPHP\HTTP\Emitter\Exceptions\EmitBodyException;
 use InitPHP\HTTP\Emitter\Exceptions\EmitHeaderException;
-use \Psr\Http\Message\{ResponseInterface, StreamInterface};
+use Psr\Http\Message\{ResponseInterface, StreamInterface};
 
 use function assert;
-use function is_string;
-use function ucwords;
-use function strtolower;
+use function flush;
 use function header;
-use function sprintf;
 use function headers_sent;
 use function is_int;
-use function ob_get_level;
+use function is_string;
 use function ob_get_length;
-use function flush;
-use function strlen;
+use function ob_get_level;
 use function preg_match;
+use function sprintf;
+use function strlen;
+use function strtolower;
+use function ucwords;
 
 /**
  * Server-side emitter for PSR-7 responses. Writes the status line, the
@@ -41,7 +42,6 @@ use function preg_match;
  */
 class Emitter
 {
-
     protected bool $strictMode = true;
 
     /**
@@ -71,7 +71,7 @@ class Emitter
         $this->assertNoPreviousOutput();
         $this->emitStatusLine($response);
         $this->emitHeaders($response);
-        if($bufferLength !== null && $bufferLength > 0){
+        if ($bufferLength !== null && $bufferLength > 0) {
             $this->emitBody($response, $bufferLength);
             return;
         }
@@ -92,14 +92,14 @@ class Emitter
         flush();
         $stream = $response->getBody();
         $range = $this->parseHeaderContentRange($response->getHeaderLine('content-range'));
-        if(isset($range['unit']) && $range['unit'] === 'bytes'){
-            $this->emitBodyRange($stream, (int)$range['first'], (int)$range['last'], $bufferLength);
+        if (isset($range['unit']) && $range['unit'] === 'bytes') {
+            $this->emitBodyRange($stream, (int) $range['first'], (int) $range['last'], $bufferLength);
             return;
         }
-        if($stream->isSeekable()){
+        if ($stream->isSeekable()) {
             $stream->rewind();
         }
-        while(!$stream->eof()){
+        while (!$stream->eof()) {
             echo $stream->read($bufferLength);
         }
     }
@@ -118,15 +118,15 @@ class Emitter
     private function emitBodyRange(StreamInterface $body, int $first, int $last, int $bufferLength): void
     {
         $length = $last - $first + 1;
-        if($body->isSeekable()){
+        if ($body->isSeekable()) {
             $body->seek($first);
         }
-        while($length >= $bufferLength && !$body->eof()){
+        while ($length >= $bufferLength && !$body->eof()) {
             $content = $body->read($bufferLength);
             $length -= strlen($content);
             echo $content;
         }
-        if($length > 0 && !$body->eof()){
+        if ($length > 0 && !$body->eof()) {
             echo $body->read($length);
         }
     }
@@ -153,7 +153,7 @@ class Emitter
             throw new EmitHeaderException(sprintf(
                 'Unable to emit response; headers already sent in %s:%d',
                 $filename,
-                $line
+                $line,
             ));
         }
         if (ob_get_level() > 0 && ob_get_length() > 0) {
@@ -176,7 +176,7 @@ class Emitter
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
             $statusCode,
-            $reasonPhrase !== '' ? ' ' . $reasonPhrase : ''
+            $reasonPhrase !== '' ? ' ' . $reasonPhrase : '',
         ), true, $statusCode);
     }
 
@@ -192,11 +192,11 @@ class Emitter
     {
         $statusCode = $response->getStatusCode();
 
-        foreach ($response->getHeaders() as $header => $values){
+        foreach ($response->getHeaders() as $header => $values) {
             assert(is_string($header));
             $name = ucwords(strtolower($header), '-');
             $first = (strtolower($name) !== 'set-cookie');
-            foreach ($values as $value){
+            foreach ($values as $value) {
                 header(sprintf('%s: %s', $name, $value), $first, $statusCode);
                 $first = false;
             }
@@ -216,9 +216,9 @@ class Emitter
         if (preg_match('/(?P<unit>[\w]+)\s+(?P<first>\d+)-(?P<last>\d+)\/(?P<length>\d+|\*)/', $header, $matches)) {
             return [
                 'unit' => $matches['unit'],
-                'first' => (int)$matches['first'],
-                'last' => (int)$matches['last'],
-                'length' => ($matches['length'] === '*') ? '*' : (int)$matches['length'],
+                'first' => (int) $matches['first'],
+                'last' => (int) $matches['last'],
+                'length' => ($matches['length'] === '*') ? '*' : (int) $matches['length'],
             ];
         }
         return null;

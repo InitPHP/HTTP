@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Emitter.php
  *
@@ -28,7 +29,6 @@ use InitPHP\HTTP\Facade\Traits\Facadable;
  */
 final class Emitter implements FacadableInterface
 {
-
     use Facadable;
 
     private static \InitPHP\HTTP\Emitter\Emitter $instance;

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Client.php
  *
@@ -14,14 +15,11 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Client;
 
-use \InitPHP\HTTP\Message\{Request, Stream, Response};
-use \Psr\Http\Message\{RequestInterface, ResponseInterface, StreamInterface};
-use \InitPHP\HTTP\Client\Exceptions\{ClientException, NetworkException, RequestException};
-use \InitPHP\HTTP\Client\Retry\{Backoff, RetryAfter, RetryPolicy, Sleeper, SleeperInterface};
-use \Psr\Http\Client\NetworkExceptionInterface;
-
-use const CASE_LOWER;
-use const FILTER_VALIDATE_URL;
+use InitPHP\HTTP\Client\Exceptions\{ClientException, NetworkException, RequestException};
+use InitPHP\HTTP\Client\Retry\{Backoff, RetryAfter, RetryPolicy, Sleeper, SleeperInterface};
+use InitPHP\HTTP\Message\{Request, Response, Stream};
+use Psr\Http\Client\NetworkExceptionInterface;
+use Psr\Http\Message\{RequestInterface, ResponseInterface, StreamInterface};
 
 use function array_change_key_case;
 use function count;
@@ -29,7 +27,6 @@ use function explode;
 use function extension_loaded;
 use function filter_var;
 use function implode;
-use function in_array;
 use function is_array;
 use function is_resource;
 use function is_string;
@@ -38,6 +35,9 @@ use function preg_match;
 use function strlen;
 use function strpos;
 use function trim;
+
+use const CASE_LOWER;
+use const FILTER_VALIDATE_URL;
 
 /**
  * PSR-18 ClientInterface implementation backed by ext-curl. Wraps cURL
@@ -48,7 +48,6 @@ use function trim;
  */
 class Client implements \Psr\Http\Client\ClientInterface
 {
-
     protected string $userAgent = 'InitPHP HTTP PSR-18 Client cURL';
 
     /**
@@ -378,7 +377,7 @@ class Client implements \Psr\Http\Client\ClientInterface
             $url,
             $details['data'] ?? $details['body'] ?? null,
             $details['headers'] ?? [],
-            $details['version'] ?? '1.1'
+            $details['version'] ?? '1.1',
         );
 
         return $this->sendRequest($request);
@@ -610,7 +609,7 @@ class Client implements \Psr\Http\Client\ClientInterface
             // payloads spill to disk (default 2 MiB threshold) instead of
             // pinning the entire body into PHP's process memory as a string.
             new Stream($response['body'], 'php://temp'),
-            $response['version']
+            $response['version'],
         );
     }
 
@@ -747,7 +746,7 @@ class Client implements \Psr\Http\Client\ClientInterface
         } else {
             throw new \InvalidArgumentException(
                 'Request body must be a string, resource, StreamInterface, or null. '
-                . 'Encode structured payloads (arrays, DOM, objects) before passing them in.'
+                . 'Encode structured payloads (arrays, DOM, objects) before passing them in.',
             );
         }
 

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Client\Retry;
@@ -8,7 +9,6 @@ use InitPHP\HTTP\Client\Retry\RetryPolicy;
 use InitPHP\HTTP\Message\Request;
 use InitPHP\HTTP\Message\Response;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
 
 /**
  * End-to-end behaviour of the opt-in retry-with-backoff layer wired into
@@ -116,7 +116,7 @@ final class ClientRetryTest extends TestCase
             $this->response(200),
         ]);
         $client->setSleeper($sleeper)
-            ->setJitterRandomizer(static fn (): float => 0.0)
+            ->setJitterRandomizer(static fn(): float => 0.0)
             ->setRetryPolicy(new RetryPolicy(2, 1.0, 2.0, 30.0, 0.5));
 
         $client->sendRequest($this->request());
