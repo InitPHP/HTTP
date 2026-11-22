@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Message;
@@ -51,7 +52,7 @@ final class ResponseHttpVersionTest extends TestCase
             'minor 1.2'        => ['1.2'],
             'minor 2.5'        => ['2.5'],
             'major 4.0'        => ['4.0'],
-            'prefixed http/1.1'=> ['http/1.1'],
+            'prefixed http/1.1' => ['http/1.1'],
             'empty string'     => [''],
             'plain integer 2'  => ['02'],
             'whitespace'       => [' 1.1 '],

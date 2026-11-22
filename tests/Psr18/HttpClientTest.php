@@ -1,10 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Psr18;
 
 use InitPHP\HTTP\Client\Client;
-use InitPHP\HTTP\Client\Exceptions\NetworkException;
 use InitPHP\HTTP\Message\Request;
 use InitPHP\HTTP\Message\Stream;
 use PHPUnit\Framework\TestCase;
@@ -40,7 +40,7 @@ final class HttpClientTest extends TestCase
             'PHP_CLI_SERVER_WORKERS=4 exec php -S %s:%d %s',
             self::HOST,
             self::PORT,
-            escapeshellarg($fixture)
+            escapeshellarg($fixture),
         );
 
         $descriptors = [
@@ -143,7 +143,7 @@ final class HttpClientTest extends TestCase
         $request = new Request(
             'GET',
             self::$baseUrl . '/echo',
-            ['X-Custom' => 'hello', 'X-Multi' => ['a', 'b']]
+            ['X-Custom' => 'hello', 'X-Multi' => ['a', 'b']],
         );
 
         $response = $client->sendRequest($request);
@@ -161,7 +161,7 @@ final class HttpClientTest extends TestCase
             'POST',
             self::$baseUrl . '/echo',
             ['Content-Type' => 'application/json'],
-            new Stream($body, null)
+            new Stream($body, null),
         );
 
         $response = $client->sendRequest($request);

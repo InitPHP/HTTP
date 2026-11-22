@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ServerRequest.php
  *
@@ -14,13 +15,10 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \InitPHP\HTTP\Message\Traits\{MessageTrait, RequestTrait};
-use \Psr\Http\Message\{ServerRequestInterface, UploadedFileInterface, UriInterface};
-
-use const PHP_SAPI;
+use InitPHP\HTTP\Message\Traits\{MessageTrait, RequestTrait};
+use Psr\Http\Message\{ServerRequestInterface, UploadedFileInterface, UriInterface};
 
 use function array_keys;
-use function array_merge;
 use function file_get_contents;
 use function function_exists;
 use function in_array;
@@ -34,6 +32,8 @@ use function strtolower;
 use function substr;
 use function ucwords;
 
+use const PHP_SAPI;
+
 /**
  * PSR-7 ServerRequestInterface implementation backed by {@see MessageTrait}
  * and {@see RequestTrait}. Adds the server-side state PSR-7 attaches to an
@@ -44,8 +44,8 @@ use function ucwords;
  */
 class ServerRequest implements ServerRequestInterface
 {
-
-    use MessageTrait, RequestTrait;
+    use MessageTrait;
+    use RequestTrait;
 
     protected array $serverParams = [];
 
@@ -94,7 +94,7 @@ class ServerRequest implements ServerRequestInterface
     public function __construct(string $method, $uri, array $headers = [], $body = null, string $version = '1.1', array $serverParams = [])
     {
         $this->serverParams = $serverParams;
-        if(!($uri instanceof UriInterface)){
+        if (!($uri instanceof UriInterface)) {
             $uri = new Uri($uri);
         }
         $this->setUpConstruct($method, $uri, $body, $headers, $version);
@@ -130,13 +130,13 @@ class ServerRequest implements ServerRequestInterface
         ?array $get = null,
         ?array $post = null,
         ?array $cookies = null,
-        ?array $files = null
+        ?array $files = null,
     ): self {
-        $server  = $server  ?? $_SERVER;
-        $get     = $get     ?? $_GET;
-        $post    = $post    ?? $_POST;
-        $cookies = $cookies ?? $_COOKIE;
-        $files   = $files   ?? $_FILES;
+        $server ??= $_SERVER;
+        $get ??= $_GET;
+        $post ??= $_POST;
+        $cookies ??= $_COOKIE;
+        $files ??= $_FILES;
 
         $method = isset($server['REQUEST_METHOD']) ? (string) $server['REQUEST_METHOD'] : 'GET';
         if (PHP_SAPI === 'cli' && !isset($server['REQUEST_METHOD'])) {
@@ -408,7 +408,7 @@ class ServerRequest implements ServerRequestInterface
      */
     public function setParsedBody($data): self
     {
-        if(!is_array($data) && !is_object($data) && $data !== null){
+        if (!is_array($data) && !is_object($data) && $data !== null) {
             throw new \InvalidArgumentException('First parameter to withParsedBody MUST be object, array or null');
         }
         $this->parsedBody = $data;
@@ -553,7 +553,7 @@ class ServerRequest implements ServerRequestInterface
             isset($value['size']) ? (int) $value['size'] : null,
             (int) ($value['error'] ?? UPLOAD_ERR_OK),
             $value['name'] ?? null,
-            $value['type'] ?? null
+            $value['type'] ?? null,
         );
     }
 

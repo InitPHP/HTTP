@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit;
@@ -62,7 +63,7 @@ trait FixtureServerTrait
             'PHP_CLI_SERVER_WORKERS=4 exec php -S %s:%d %s',
             self::fixtureHost(),
             $port,
-            escapeshellarg($fixture)
+            escapeshellarg($fixture),
         );
 
         $descriptors = [

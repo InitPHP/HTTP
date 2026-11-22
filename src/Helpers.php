@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Helpers.php
  *
@@ -45,7 +46,7 @@ if (!function_exists('send_request')) {
             throw new \InvalidArgumentException('send_request() requires a URL when the first argument is an HTTP method.');
         }
 
-        $headers = $headers ?? [];
+        $headers ??= [];
 
         if (is_array($body)) {
             $body = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -63,7 +64,7 @@ if (!function_exists('send_request')) {
             } else {
                 throw new \InvalidArgumentException(
                     'Unsupported body type ' . get_class($body) . '; pass a string, resource, StreamInterface, '
-                    . 'array, object with __toString(), or object with toArray().'
+                    . 'array, object with __toString(), or object with toArray().',
                 );
             }
         }

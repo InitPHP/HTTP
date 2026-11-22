@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Factory;
@@ -78,7 +79,7 @@ final class FactoryStreamFromFileTest extends TestCase
                     @unlink($tmp);
                 }
                 $stream = (new Factory())->createStreamFromFile($tmp, $mode);
-                self::assertNotNull($stream, 'mode '.$mode.' must yield a stream');
+                self::assertNotNull($stream, 'mode ' . $mode . ' must yield a stream');
                 if ($mode[0] === 'x') {
                     // Re-populate for subsequent iterations.
                     file_put_contents($tmp, 'x');

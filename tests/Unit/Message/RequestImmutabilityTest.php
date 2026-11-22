@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Message;
@@ -113,7 +114,7 @@ final class RequestImmutabilityTest extends TestCase
     public function testWithRequestTargetRejectsWhitespace(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        (new Request('GET', '/'))->withRequestTarget("/has space");
+        (new Request('GET', '/'))->withRequestTarget('/has space');
     }
 
     public function testIsMethodMatchesCaseInsensitively(): void

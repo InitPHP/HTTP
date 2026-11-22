@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Request.php
  *
@@ -14,7 +15,7 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \InitPHP\HTTP\Message\Traits\{MessageTrait, RequestTrait};
+use InitPHP\HTTP\Message\Traits\{MessageTrait, RequestTrait};
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\UriInterface;
 
@@ -26,8 +27,8 @@ use Psr\Http\Message\UriInterface;
  */
 class Request implements RequestInterface
 {
-
-    use MessageTrait, RequestTrait;
+    use MessageTrait;
+    use RequestTrait;
 
     /**
      * Clone the body and URI deeply so callers using `with*()` cannot

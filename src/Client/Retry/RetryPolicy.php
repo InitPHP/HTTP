@@ -1,4 +1,5 @@
 <?php
+
 /**
  * RetryPolicy.php
  *
@@ -97,7 +98,7 @@ final class RetryPolicy
         float $jitter = 0.5,
         bool $retryOnException = true,
         ?array $retryableStatusCodes = null,
-        bool $respectRetryAfter = true
+        bool $respectRetryAfter = true,
     ) {
         $this->maxAttempts          = max(1, $maxAttempts);
         $this->baseDelay            = max(0.0, $baseDelay);

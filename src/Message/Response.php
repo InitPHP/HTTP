@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Response.php
  *
@@ -14,9 +15,9 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Message;
 
-use \InvalidArgumentException;
-use \InitPHP\HTTP\Message\Traits\MessageTrait;
-use \Psr\Http\Message\{ResponseInterface, StreamInterface};
+use InitPHP\HTTP\Message\Traits\MessageTrait;
+use InvalidArgumentException;
+use Psr\Http\Message\{ResponseInterface, StreamInterface};
 
 use function in_array;
 use function is_numeric;
@@ -35,7 +36,6 @@ use function json_encode;
  */
 class Response implements ResponseInterface
 {
-
     use MessageTrait;
 
     protected const PHRASES = [
@@ -138,15 +138,15 @@ class Response implements ResponseInterface
     {
         if (!in_array($version, ['1.0', '1.1', '2', '2.0', '3', '3.0'], true)) {
             throw new \InvalidArgumentException(
-                'Supported HTTP versions are: "1.0", "1.1", "2", "2.0", "3" or "3.0".'
+                'Supported HTTP versions are: "1.0", "1.1", "2", "2.0", "3" or "3.0".',
             );
         }
         $this->setStream($body);
         $this->statusCode = $status;
         $this->setHeaders($headers);
-        if($reason === null && isset(self::PHRASES[$this->statusCode])){
+        if ($reason === null && isset(self::PHRASES[$this->statusCode])) {
             $this->reasonPhrase = self::PHRASES[$this->statusCode];
-        }else{
+        } else {
             $this->reasonPhrase = $reason ?? '';
         }
         $this->protocol = $version;
@@ -162,19 +162,19 @@ class Response implements ResponseInterface
      */
     public function setStream($body): self
     {
-        if($body === null){
+        if ($body === null) {
             return $this;
         }
-        if($body instanceof StreamInterface){
+        if ($body instanceof StreamInterface) {
             $this->stream = $body;
             return $this;
         }
-        if(is_resource($body)){
+        if (is_resource($body)) {
             $this->stream = new Stream($body);
             return $this;
         }
-        if(is_scalar($body)){
-            $this->stream = new Stream((string)$body);
+        if (is_scalar($body)) {
+            $this->stream = new Stream((string) $body);
             return $this;
         }
         return $this;
@@ -202,12 +202,12 @@ class Response implements ResponseInterface
      */
     public function setStatusCode(int $code, string $reasonPhrase = ''): self
     {
-        if(!is_numeric($code)){
+        if (!is_numeric($code)) {
             throw new InvalidArgumentException('Status code has to be an integer');
         }
-        $code = (int)$code;
-        if($code < 100 || $code > 599){
-            throw new InvalidArgumentException('Status code has to be an integer between 100 and 599. A status code of '.$code.' was given.');
+        $code = (int) $code;
+        if ($code < 100 || $code > 599) {
+            throw new InvalidArgumentException('Status code has to be an integer between 100 and 599. A status code of ' . $code . ' was given.');
         }
         $this->statusCode = $code;
         if (empty($reasonPhrase) && isset(self::PHRASES[$code])) {

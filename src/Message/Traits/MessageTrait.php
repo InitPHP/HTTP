@@ -1,4 +1,5 @@
 <?php
+
 /**
  * MessageTrait.php
  *
@@ -11,7 +12,6 @@
  */
 
 declare(strict_types=1);
-
 
 namespace InitPHP\HTTP\Message\Traits;
 
@@ -35,7 +35,6 @@ use function trim;
  */
 trait MessageTrait
 {
-
     protected array $headers = [];
 
     protected array $headerNames = [];
@@ -234,7 +233,7 @@ trait MessageTrait
      */
     public function getBody(): StreamInterface
     {
-        if(!isset($this->stream)){
+        if (!isset($this->stream)) {
             $this->stream = new Stream('');
         }
         return $this->stream;
@@ -280,10 +279,10 @@ trait MessageTrait
     public function setHeaders(array $headers): self
     {
         foreach ($headers as $key => $value) {
-            $name = (string)$key;
+            $name = (string) $key;
             $value = $this->validateAndTrimHeader($name, $value);
             $lowercase = strtolower($name);
-            if(isset($this->headerNames[$lowercase])){
+            if (isset($this->headerNames[$lowercase])) {
                 $header = $this->headerNames[$lowercase];
                 $this->headers[$header] = array_merge($this->headers[$header], $value);
                 continue;
@@ -334,24 +333,24 @@ trait MessageTrait
      */
     protected function validateAndTrimHeader($header, $values): array
     {
-        if(!is_string($header) || (bool)preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@", $header) === FALSE){
+        if (!is_string($header) || (bool) preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@", $header) === false) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string.');
         }
-        if(!is_array($values)){
-            if((!is_numeric($values) && !is_string($values)) || ((bool)preg_match("@^[ \t\x21-\x7E\x80-\xFF]*$@", (string)$values)) === FALSE){
+        if (!is_array($values)) {
+            if ((!is_numeric($values) && !is_string($values)) || ((bool) preg_match("@^[ \t\x21-\x7E\x80-\xFF]*$@", (string) $values)) === false) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings.');
             }
-            return [trim((string)$values, " \t")];
+            return [trim((string) $values, " \t")];
         }
-        if(empty($values)){
+        if (empty($values)) {
             throw new \InvalidArgumentException('Header values must be a string or an array of strings, empty array given.');
         }
         $res = [];
         foreach ($values as $value) {
-            if((!is_numeric($value) && !is_string($value)) || (bool)preg_match("@^[ \t\x21-\x7E\x80-\xFF]*$@", (string)$value) === FALSE){
+            if ((!is_numeric($value) && !is_string($value)) || (bool) preg_match("@^[ \t\x21-\x7E\x80-\xFF]*$@", (string) $value) === false) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings.');
             }
-            $res[] = trim((string)$value, " \t");
+            $res[] = trim((string) $value, " \t");
         }
         return $res;
     }

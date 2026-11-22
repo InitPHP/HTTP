@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Message;
@@ -102,7 +103,7 @@ final class ResponseReasonPhraseTableTest extends TestCase
     public function testReasonPhraseMatchesIanaRegistry(int $code, string $expected): void
     {
         $response = new Response($code);
-        self::assertSame($expected, $response->getReasonPhrase(), 'Status '.$code);
+        self::assertSame($expected, $response->getReasonPhrase(), 'Status ' . $code);
     }
 
     public function testInternalServerErrorPhraseIsExact(): void

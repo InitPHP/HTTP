@@ -1,6 +1,6 @@
 {
     "name": "initphp/http",
-    "description": "Standards-compliant PSR-7 / PSR-17 / PSR-18 HTTP message, factory, client and response emitter implementation for PHP 7.4+.",
+    "description": "Standards-compliant PSR-7 / PSR-17 / PSR-18 HTTP message, factory, client and response emitter implementation for PHP 8.2+.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -36,7 +36,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4",
+        "php": "^8.2",
         "ext-json": "*",
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
@@ -46,6 +46,7 @@
         "ext-curl": "*",
         "http-interop/http-factory-tests": "^1.1 || ^2.0",
         "php-http/psr7-integration-tests": "^1.3",
+        "friendsofphp/php-cs-fixer": "^3.88",
         "phpstan/phpstan": "^1.10",
         "phpunit/phpunit": "^9.6 || ^10.5"
     },
@@ -69,7 +70,10 @@
         "test": "phpunit",
         "test:coverage": "phpunit --coverage-text --coverage-html=build/coverage",
         "phpstan": "phpstan analyse --memory-limit=512M",
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix",
         "ci": [
+            "@cs-check",
             "@phpstan",
             "@test"
         ]
@@ -78,7 +82,9 @@
         "test": "Run the PHPUnit test suite.",
         "test:coverage": "Run the PHPUnit test suite with HTML coverage report.",
         "phpstan": "Run PHPStan static analysis.",
-        "ci": "Run the full CI gate (PHPStan + PHPUnit)."
+        "cs-check": "Verify coding standards without modifying files.",
+        "cs-fix": "Apply coding standard fixes in place.",
+        "ci": "Run the full CI gate (cs-check + PHPStan + PHPUnit)."
     },
     "config": {
         "sort-packages": true
