@@ -21,6 +21,6 @@ parameters:
         # Request::__set has a return statement that PHP discards; legacy magic-method
         # signature. Cleaned up when _parameters bag is removed in v3.
         - '#Method InitPHP\\HTTP\\Message\\Request::__set\(\) with return type void returns mixed but should not return anything\.#'
-        # PHP 7.4 still allows ?? on superglobals; suppress noise until createFromGlobals
+        # `??` on superglobals is reported as always-set; suppress noise until createFromGlobals
         # is moved to ServerRequest with explicit ServerRequestFactory entry.
         - '#Variable \$_(GET|POST|SERVER|COOKIE|FILES|ENV) on left side of \?\? always exists and is not nullable\.#'

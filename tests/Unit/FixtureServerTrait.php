@@ -18,9 +18,8 @@ namespace InitPHP\HTTP\Tests\Unit;
 trait FixtureServerTrait
 {
     /**
-     * PHP 8.1 and earlier do not allow constants inside traits — that was
-     * relaxed in PHP 8.2. Expose the host as a static method instead so the
-     * trait keeps working across the whole PHP 7.4 – 8.4 matrix.
+     * Expose the host as a static method rather than a trait constant, which
+     * keeps the trait independent of the PHP version it is used on.
      */
     private static function fixtureHost(): string
     {
