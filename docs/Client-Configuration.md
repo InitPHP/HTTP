@@ -77,7 +77,7 @@ When following is on, the returned `Response` is the **final** leg only — inte
 $client->setUserAgent('my-service/1.0 (+https://example.com/contact)');
 ```
 
-Setting `null` or the empty string is a **no-op** — the User-Agent is never cleared by these methods. If you really need an empty `User-Agent`, do it at the request level (`$request->withHeader('User-Agent', '')`) which is what gets emitted to the wire.
+Setting `null` or the empty string is a **no-op** — the User-Agent is never cleared by these methods; the configured (or default) value is what is sent when the request itself carries no `User-Agent` header. If you really need an empty `User-Agent`, do it at the request level (`$request->withHeader('User-Agent', '')`) which is what gets emitted to the wire.
 
 ## Custom cURL options — the escape hatch
 
