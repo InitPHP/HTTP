@@ -185,6 +185,10 @@ Implements: `Psr\Http\Client\ClientInterface`.
 | `getCurlOptions()`                                                                 | `array`                              |
 | `setRetryPolicy(?RetryPolicy) / withRetryPolicy(?RetryPolicy)`                     | `self`                               |
 | `getRetryPolicy()`                                                                 | `?RetryPolicy`                       |
+| `setSleeper(SleeperInterface) / withSleeper(SleeperInterface)`                     | `self`                               |
+| `setJitterRandomizer(?callable) / withJitterRandomizer(?callable)`                 | `self`                               |
+
+The retry classes (`RetryPolicy`, `Backoff`, `RetryAfter`, `SleeperInterface`, `Sleeper`) are documented, with their signatures, on [Client Retry](Client-Retry.md).
 
 ## `Emitter\Emitter` — [page](Emitter.md)
 

@@ -19,6 +19,7 @@
 **PSR-18 Client**
 - [Client](PSR-18-Client.md)
 - [Configuration](Client-Configuration.md)
+- [Retry & Backoff](Client-Retry.md)
 - [Exceptions](Client-Exceptions.md)
 
 **Emitter (SAPI)**

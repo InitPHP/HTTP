@@ -123,6 +123,8 @@ $client = (new Client())->withRetryPolicy(new RetryPolicy(
 - A parseable `Retry-After` header on a retryable response overrides the computed backoff unless `respectRetryAfter` is `false`.
 - A non-retryable `4xx`/`5xx` response is still **returned, never thrown**. A retryable response that exhausts `maxAttempts` is returned as-is; a transport exception that exhausts it is re-thrown.
 
+The full reference (every `RetryPolicy` parameter and clamp, the backoff formula, `Retry-After` parsing and the sleeper seam) is on the [Client Retry](Client-Retry.md) page.
+
 Need a different policy (idempotency keys, circuit breakers, ...)? Wrap the client in your own loop instead:
 
 ```php
