@@ -16,26 +16,43 @@ $upstreamUri = $incoming->getUri()
     ->withHost('upstream.internal')
     ->withPort(443);
 
-// 2) Strip hop-by-hop headers that MUST NOT be forwarded.
-$hopByHop = ['Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Proxy-Authorization',
-             'TE', 'Trailers', 'Transfer-Encoding', 'Upgrade'];
-$headers  = array_diff_key($incoming->getHeaders(), array_flip($hopByHop));
+// 2) Hop-by-hop headers MUST NOT be forwarded. Header names are
+//    case-insensitive ("transfer-encoding" is the same header), and any header
+//    named in "Connection: a, b" is hop-by-hop as well.
+function hopByHopNames(\Psr\Http\Message\MessageInterface $message): array
+{
+    $names = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+              'te', 'trailer', 'transfer-encoding', 'upgrade'];
+    foreach (explode(',', $message->getHeaderLine('Connection')) as $name) {
+        $names[] = strtolower(trim($name));
+    }
 
-// 3) Build the upstream request from the incoming body verbatim.
+    return $names;
+}
+
+// 3) Build the upstream request from the incoming body verbatim. "Host" is not
+//    copied either: the Request derives it from $upstreamUri, so the upstream
+//    sees its own host and not the one the client chose.
+$skip     = [...hopByHopNames($incoming), 'host'];
 $outgoing = new Request(
     $incoming->getMethod(),
     $upstreamUri,
-    $headers,
+    [],
     $incoming->getBody(),
     $incoming->getProtocolVersion()
 );
+foreach ($incoming->getHeaders() as $name => $values) {
+    if (!in_array(strtolower((string) $name), $skip, true)) {
+        $outgoing = $outgoing->withHeader((string) $name, $values);
+    }
+}
 
 // 4) Ship it.
 $client   = (new Client())->withTimeout(30);
 $response = $client->sendRequest($outgoing);
 
 // 5) Strip hop-by-hop on the way out, then emit.
-foreach ($hopByHop as $h) {
+foreach (hopByHopNames($response) as $h) {
     $response = $response->withoutHeader($h);
 }
 
@@ -73,13 +90,16 @@ $outgoing = $outgoing
 
 ### Caching
 
-The PSR-18 client gives you the `ResponseInterface` directly — wrap it in any cache decorator before emitting:
+The PSR-18 client gives you the `ResponseInterface` directly — wrap it in any cache decorator before emitting. Only cache what is identical for every caller: a `GET` that carries no credentials. A response fetched with an `Authorization` or `Cookie` header belongs to one user, and a cache key that ignores those headers would hand it to the next:
 
 ```php
-$response = $cache->fetchOrStore(
-    cacheKey($outgoing),
-    fn () => $client->sendRequest($outgoing)
-);
+$cacheable = $outgoing->getMethod() === 'GET'
+    && !$outgoing->hasHeader('Authorization')
+    && !$outgoing->hasHeader('Cookie');
+
+$response = $cacheable
+    ? $cache->fetchOrStore((string) $outgoing->getUri(), fn () => $client->sendRequest($outgoing))
+    : $client->sendRequest($outgoing);
 ```
 
 The package itself ships no caching layer; that's deliberate.

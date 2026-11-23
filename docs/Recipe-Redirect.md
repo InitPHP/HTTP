@@ -56,11 +56,13 @@ PSR-7 leaves cookie handling to your session middleware; preserve the session by
 $response = (new Response())
     ->redirect('/dashboard', 302)
     ->withAddedHeader('Set-Cookie', sprintf(
-        '%s=%s; Path=/; HttpOnly; SameSite=Lax',
+        '%s=%s; Path=/; Secure; HttpOnly; SameSite=Lax',
         session_name(),
         session_id()
     ));
 ```
+
+Keep `Secure` and `HttpOnly` on a session cookie: without `Secure` the id is also sent over plain HTTP, and without `HttpOnly` a script injected into the page can read it. (Serve the site over HTTPS; for plain-HTTP local development, drop `Secure` there only.)
 
 ## Validation
 

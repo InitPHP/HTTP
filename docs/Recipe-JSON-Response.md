@@ -95,14 +95,20 @@ $response = (new Response(200, [
 use Psr\Http\Message\ServerRequestInterface;
 
 function jsonHandler(ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface {
-    $origin = $request->getHeaderLine('Origin') ?: '*';
+    // Echo the Origin back only when it is on your allow-list. Reflecting any
+    // Origin is the same as "*", and becomes a hole the moment you add
+    // Access-Control-Allow-Credentials. For other origins, send no CORS headers.
+    $allowedOrigins = ['https://app.example.com'];
+    $origin         = $request->getHeaderLine('Origin');
 
-    $cors = [
-        'Access-Control-Allow-Origin'  => $origin,
-        'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
-        'Vary'                          => 'Origin',
-    ];
+    $cors = ['Vary' => 'Origin'];
+    if (in_array($origin, $allowedOrigins, true)) {
+        $cors += [
+            'Access-Control-Allow-Origin'  => $origin,
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
+        ];
+    }
 
     if ($request->getMethod() === 'OPTIONS') {
         return new \InitPHP\HTTP\Message\Response(204, $cors);
