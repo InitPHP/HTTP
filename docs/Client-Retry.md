@@ -200,4 +200,4 @@ $client = (new Client())
 - [Client Configuration → Retries](Client-Configuration.md#retries): the short guide, plus a hand-written retry loop for policies this one cannot express.
 - [PSR-18 Client](PSR-18-Client.md): `sendRequest()` and the convenience methods.
 - [Client Exceptions](Client-Exceptions.md): which failures are network exceptions.
-- [API Reference](API-Reference.md): signatures at a glance.
+- [API Reference](API-Reference.md): the `Client` methods for the retry policy, sleeper and jitter source.

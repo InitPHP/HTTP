@@ -17,12 +17,23 @@ function storeUpload(UploadedFileInterface $file, string $directory, array $allo
     if ($file->getError() !== UPLOAD_ERR_OK) {
         throw new \DomainException('Upload failed: error #' . $file->getError());
     }
-    if ($file->getSize() === null || $file->getSize() > $maxBytes) {
+    if ($file->getSize() === null) {
+        throw new \DomainException('The upload size is unknown.');
+    }
+    if ($file->getSize() > $maxBytes) {
         throw new \DomainException('The upload is too large.');
     }
 
     // Detect the type from the bytes. getClientMediaType() is just a header the client chose.
-    $head = $file->getStream()->read(8192);
+    // An upload built from a stream may have been read already, and a stream that cannot be
+    // rewound cannot be checked and then stored intact, so it is rejected rather than skipped.
+    $stream = $file->getStream();
+    if (!$stream->isSeekable()) {
+        throw new \DomainException('This upload cannot be inspected.');
+    }
+    $stream->rewind();
+    $head = $stream->read(8192);
+    $stream->rewind(); // moveTo() copies from the start; leave the stream there
     $type = (new \finfo(FILEINFO_MIME_TYPE))->buffer($head);
     if ($type === false || !isset($allowed[$type])) {
         throw new \DomainException('This file type is not allowed.');
@@ -61,10 +72,11 @@ See [UploadedFile](Uploaded-File.md) for the full `UPLOAD_ERR_*` error map.
 
 ### Why it is written this way
 
-- **Never build the path from `getClientFilename()`.** The name is whatever the client sent. A value such as `../../public/index.php` or `shell.php` lets the client choose where the file lands, overwrite an existing file, or pick an extension your web server may execute. A random name removes all three.
+- **Never build the path from `getClientFilename()`.** The name is whatever the client sent. A value such as `shell.php` lets the client pick an extension your web server may execute, or overwrite an existing file with the same name; a path such as `../../public/index.php` can choose where the file lands. (PHP's own `$_FILES` handling strips directories from `name`, but a request built from another source may not, and the extension and overwrite risks remain.) A random name removes all of them.
 - **Never trust `getClientMediaType()`.** It is the `Content-Type` the client declared for that part, so it can say `image/png` about anything. The helper reads the first bytes of the file and asks `finfo` instead. Detection by content is a safeguard, not a guarantee that a file is harmless: still store uploads in a directory your web server does not execute code from, ideally outside the document root, and serve them through your own handler.
 - **The extension comes from the allow-list, not from the client.** A type that is not in `$allowed` is rejected, and an accepted type is always stored with the extension you mapped to it.
 - **The original name is data, not a path.** If you want to show it to users later, keep it in your database and escape it on output.
+- **The stream is rewound before and after the check.** An upload built from a stream may already have been read, and `moveTo()` copies from the start. Checking and storing the same bytes matters, so a stream that cannot be rewound is rejected instead of being checked partially. Uploads from `ServerRequest::createFromGlobals()` are backed by a file path and open a fresh stream on every `getStream()` call.
 - **Size is checked too.** `$maxBytes` is your application limit. PHP's own `upload_max_filesize` and `post_max_size` still apply and surface as `UPLOAD_ERR_*` errors.
 
 `finfo` needs the `fileinfo` extension, which is bundled with PHP and enabled by default.
@@ -105,7 +117,8 @@ function walk(array $files, callable $sink): void {
 
 walk($tree, static function (\Psr\Http\Message\UploadedFileInterface $file) use ($allowed) {
     if ($file->getError() === UPLOAD_ERR_OK) {
-        storeUpload($file, '/var/uploads', $allowed, 5 * 1024 * 1024);
+        $storedName = storeUpload($file, '/var/uploads', $allowed, 5 * 1024 * 1024);
+        // Save $storedName in your database, otherwise nothing links the stored file to its owner.
     }
 });
 ```
