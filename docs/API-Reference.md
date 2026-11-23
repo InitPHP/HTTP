@@ -29,7 +29,7 @@ Implements: `Psr\Http\Message\RequestInterface`.
 | `isGet() / isPost() / isPut() / isDelete() / isHead() / isPatch()`                                | `bool`                   |
 | `isMethod(string ...$method)`                                                                     | `bool`                   |
 
-Plus everything from `MessageTrait` — see [`Message\Traits\MessageTrait`](#messagetraits-messagetrait).
+Plus everything from `MessageTrait` — see [`Message\Traits\MessageTrait`](#messagetraitsmessagetrait).
 
 ## `Message\Response` — [page](Response.md)
 
