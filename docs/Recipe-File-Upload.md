@@ -2,22 +2,72 @@
 
 ## Server side: receiving uploads
 
+Treat everything the client sends about a file as untrusted input: its name, its media type and its extension. The helper below stores an upload under a name the **server** generates, with an extension taken from an allow-list that is keyed by the type detected from the file's **content**.
+
+```php
+use Psr\Http\Message\UploadedFileInterface;
+
+/**
+ * Stores one upload and returns the server-generated file name.
+ *
+ * @param array<string, string> $allowed Detected media type => extension to store it with.
+ */
+function storeUpload(UploadedFileInterface $file, string $directory, array $allowed, int $maxBytes): string
+{
+    if ($file->getError() !== UPLOAD_ERR_OK) {
+        throw new \DomainException('Upload failed: error #' . $file->getError());
+    }
+    if ($file->getSize() === null || $file->getSize() > $maxBytes) {
+        throw new \DomainException('The upload is too large.');
+    }
+
+    // Detect the type from the bytes. getClientMediaType() is just a header the client chose.
+    $head = $file->getStream()->read(8192);
+    $type = (new \finfo(FILEINFO_MIME_TYPE))->buffer($head);
+    if ($type === false || !isset($allowed[$type])) {
+        throw new \DomainException('This file type is not allowed.');
+    }
+
+    // Random name, extension from the allow-list. Nothing here comes from the client.
+    $name = bin2hex(random_bytes(16)) . '.' . $allowed[$type];
+    $file->moveTo(rtrim($directory, '/') . '/' . $name);
+
+    return $name;
+}
+```
+
+Use it on the request:
+
 ```php
 use InitPHP\HTTP\Message\ServerRequest;
 
 $request = ServerRequest::createFromGlobals();
 
+$allowed = [
+    'image/jpeg'      => 'jpg',
+    'image/png'       => 'png',
+    'application/pdf' => 'pdf',
+];
+
 foreach ($request->getUploadedFiles() as $field => $file) {
     if ($file instanceof \Psr\Http\Message\UploadedFileInterface) {
-        if ($file->getError() !== UPLOAD_ERR_OK) {
-            throw new \DomainException('Upload failed: error #' . $file->getError());
-        }
-        $file->moveTo('/var/www/uploads/' . bin2hex(random_bytes(8)) . '.bin');
+        $storedName = storeUpload($file, '/var/uploads', $allowed, 5 * 1024 * 1024);
+        // Save $storedName (and, if you need it, the original name as plain data) in your database.
     }
 }
 ```
 
 See [UploadedFile](Uploaded-File.md) for the full `UPLOAD_ERR_*` error map.
+
+### Why it is written this way
+
+- **Never build the path from `getClientFilename()`.** The name is whatever the client sent. A value such as `../../public/index.php` or `shell.php` lets the client choose where the file lands, overwrite an existing file, or pick an extension your web server may execute. A random name removes all three.
+- **Never trust `getClientMediaType()`.** It is the `Content-Type` the client declared for that part, so it can say `image/png` about anything. The helper reads the first bytes of the file and asks `finfo` instead. Detection by content is a safeguard, not a guarantee that a file is harmless: still store uploads in a directory your web server does not execute code from, ideally outside the document root, and serve them through your own handler.
+- **The extension comes from the allow-list, not from the client.** A type that is not in `$allowed` is rejected, and an accepted type is always stored with the extension you mapped to it.
+- **The original name is data, not a path.** If you want to show it to users later, keep it in your database and escape it on output.
+- **Size is checked too.** `$maxBytes` is your application limit. PHP's own `upload_max_filesize` and `post_max_size` still apply and surface as `UPLOAD_ERR_*` errors.
+
+`finfo` needs the `fileinfo` extension, which is bundled with PHP and enabled by default.
 
 ## Nested file inputs
 
@@ -40,7 +90,7 @@ $tree['docs']['exhibits']['a']     instanceof UploadedFileInterface; // true
 $tree['docs']['exhibits']['b']     instanceof UploadedFileInterface; // true
 ```
 
-Walk the tree with a small recursive helper:
+Walk the tree with a small recursive helper, and store each file with the `storeUpload()` function from above:
 
 ```php
 function walk(array $files, callable $sink): void {
@@ -53,9 +103,9 @@ function walk(array $files, callable $sink): void {
     }
 }
 
-walk($tree, static function (\Psr\Http\Message\UploadedFileInterface $file) {
+walk($tree, static function (\Psr\Http\Message\UploadedFileInterface $file) use ($allowed) {
     if ($file->getError() === UPLOAD_ERR_OK) {
-        $file->moveTo('/uploads/' . $file->getClientFilename());
+        storeUpload($file, '/var/uploads', $allowed, 5 * 1024 * 1024);
     }
 });
 ```
