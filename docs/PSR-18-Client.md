@@ -113,6 +113,7 @@ POST/PUT/PATCH/DELETE requests always set `CURLOPT_POSTFIELDS`, even when the bo
 ## See also
 
 - [Configuration](Client-Configuration.md) — timeouts, user agent, raw `CURLOPT_*` overrides.
+- [Client Retry](Client-Retry.md) — opt-in retries with exponential backoff and `Retry-After`.
 - [Client Exceptions](Client-Exceptions.md) — the PSR-18 error contract.
 - [Helpers](Helpers.md) — the `send_request()` global helper that auto-encodes arrays/objects.
 - [Recipe — Proxying Requests](Recipe-Proxying-Requests.md) — incoming `ServerRequest` → outgoing `Request`.

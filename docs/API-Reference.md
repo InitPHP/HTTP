@@ -186,6 +186,8 @@ Implements: `Psr\Http\Client\ClientInterface`.
 | `setRetryPolicy(?RetryPolicy) / withRetryPolicy(?RetryPolicy)`                     | `self`                               |
 | `getRetryPolicy()`                                                                 | `?RetryPolicy`                       |
 
+The retry classes (`RetryPolicy`, `Backoff`, `RetryAfter`, `SleeperInterface`, `Sleeper`) are documented on [Client Retry](Client-Retry.md).
+
 ## `Emitter\Emitter` — [page](Emitter.md)
 
 | Method                                                                  | Returns |
