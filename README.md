@@ -163,11 +163,12 @@ $client = (new Client())->withRetryPolicy(new RetryPolicy(
     maxAttempts: 4,        // 1 initial try + up to 3 retries
     baseDelay:   0.1,      // first backoff interval, seconds
     multiplier:  2.0,      // 0.1s, 0.2s, 0.4s, ...
-    maxDelay:    30.0,     // cap on any single interval
+    maxDelay:    30.0,     // cap on any single wait, Retry-After included
     jitter:      0.5,      // up to 50% random reduction (anti thundering-herd)
 ));
 
-// Every verb helper inherits the policy transparently.
+// Every verb helper inherits the policy, but POST and PATCH are still sent
+// once unless you list them in `retryableMethods` (see below).
 $response = $client->get('https://api.example.com/flaky');
 ```
 
@@ -177,10 +178,15 @@ Behaviour and backward-compatibility:
 - A non-retryable `4xx`/`5xx` response is still **returned, never thrown** (PSR-18).
 - A retryable response that exhausts the attempt cap is returned as-is (the last
   response); a transport exception that exhausts the cap is re-thrown.
+- Only **idempotent methods** (`GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`)
+  are retried by default; `POST` and `PATCH` are sent once unless you list them in
+  `retryableMethods`. A request whose body is not seekable is also sent once,
+  since a retry could not send the body again.
 - A parseable `Retry-After` header (delay-seconds or HTTP-date) on a retryable
-  response **overrides** the computed backoff unless you disable it.
-- The retryable status set, whether transport exceptions are retried, and
-  `Retry-After` handling are all configurable on `RetryPolicy`.
+  response **overrides** the computed backoff, capped at `maxDelay`, unless you
+  disable it.
+- The retryable status set, the retryable methods, whether transport exceptions
+  are retried, and `Retry-After` handling are all configurable on `RetryPolicy`.
 
 ```php
 // Customise: only retry 429/503, never on transport exceptions, ignore Retry-After.

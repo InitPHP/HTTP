@@ -5,6 +5,17 @@ All notable changes to **initphp/http** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed (breaking)
+
+- **`RetryPolicy` retries only idempotent methods by default** (RFC 9110 §9.2.2: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`). A `POST` or `PATCH` request is now sent once, even when a policy is attached. To retry them deliberately, pass the new last constructor argument `retryableMethods`, for example `new RetryPolicy(retryableMethods: [...RetryPolicy::DEFAULT_RETRYABLE_METHODS, 'POST', 'PATCH'])`. The list opens only the methods it names: the old behaviour (every method, including custom ones such as `QUERY` or `PROPFIND`) is restored only by naming each of them. New API: `RetryPolicy::DEFAULT_RETRYABLE_METHODS`, `getRetryableMethods()`, `isRetryableMethod()`.
+
+### Fixed
+
+- `Retry-After` is now capped at the policy's `maxDelay`. Previously a server could make the client wait for as long as it asked (`Retry-After: 3600` meant an hour).
+- A request whose body is not seekable is no longer retried. The retry used to send an empty body, because the first attempt had already consumed the stream; now the first response is returned, or the first exception is thrown.
+
 ## [4.0.0] - 2026-11-22
 
 ### Changed (breaking)

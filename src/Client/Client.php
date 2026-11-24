@@ -31,6 +31,7 @@ use function is_array;
 use function is_resource;
 use function is_string;
 use function max;
+use function min;
 use function preg_match;
 use function strlen;
 use function strpos;
@@ -488,8 +489,11 @@ class Client implements \Psr\Http\Client\ClientInterface
      * enabled, transport exceptions) are retried up to the policy's
      * max-attempts cap, spaced by exponential backoff with jitter. A
      * `Retry-After` header on a retryable response overrides the computed delay
-     * when the policy opts in. PSR-18 semantics are preserved: a non-retryable
-     * 4xx/5xx response is returned, never thrown.
+     * when the policy opts in, capped at the policy's `maxDelay`. Only the
+     * policy's retryable methods (idempotent ones by default) are retried, and
+     * only when the request body can be rewound; any other request is sent
+     * once. PSR-18 semantics are preserved: a non-retryable 4xx/5xx response is
+     * returned, never thrown.
      *
      * @param  RequestInterface $request
      * @return ResponseInterface
@@ -501,6 +505,14 @@ class Client implements \Psr\Http\Client\ClientInterface
     {
         $policy = $this->retryPolicy;
         if ($policy === null) {
+            return $this->transport($request);
+        }
+
+        // A request that must not be replayed gets a single attempt: a method
+        // that is not idempotent may already have been acted on by the server,
+        // and a body that cannot be rewound would be re-sent empty. In both
+        // cases the first outcome (response or exception) is the answer.
+        if (!$this->isReplayable($policy, $request)) {
             return $this->transport($request);
         }
 
@@ -534,9 +546,28 @@ class Client implements \Psr\Http\Client\ClientInterface
     }
 
     /**
+     * Whether $request may be sent more than once under $policy: its method
+     * is retryable and its body can be rewound. Any failure while reading
+     * those two accessors counts as "not replayable"; the single attempt that
+     * follows reports it as a {@see RequestException}, as PSR-18 requires.
+     *
+     * @param  RetryPolicy      $policy
+     * @param  RequestInterface $request
+     * @return bool
+     */
+    private function isReplayable(RetryPolicy $policy, RequestInterface $request): bool
+    {
+        try {
+            return $policy->isRetryableMethod($request->getMethod()) && $request->getBody()->isSeekable();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Resolve the delay before the next retry for a retryable *response*:
-     * honour a parseable `Retry-After` header when the policy opts in,
-     * otherwise fall back to the jittered exponential backoff for this attempt.
+     * honour a parseable `Retry-After` header when the policy opts in (capped
+     * at the policy's `maxDelay`), otherwise fall back to the jittered exponential backoff for this attempt.
      *
      * @param  RetryPolicy       $policy
      * @param  Backoff           $backoff
@@ -549,7 +580,7 @@ class Client implements \Psr\Http\Client\ClientInterface
         if ($policy->isRespectRetryAfter()) {
             $retryAfter = RetryAfter::fromResponse($response);
             if ($retryAfter !== null) {
-                return $retryAfter;
+                return min($retryAfter, $policy->getMaxDelay());
             }
         }
 

@@ -15,10 +15,13 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Client\Retry;
 
+use function array_map;
+use function array_unique;
 use function array_values;
 use function in_array;
 use function max;
 use function min;
+use function strtoupper;
 
 /**
  * Immutable configuration for the HTTP client's retry-with-backoff layer.
@@ -30,9 +33,10 @@ use function min;
  * space the attempts out.
  *
  * The default-constructed policy retries on the conventional transient set —
- * connection failures plus HTTP 408, 425, 429, 500, 502, 503 and 504 — which is
- * a sensible production default. The client itself stays single-attempt unless
- * a policy is explicitly attached, preserving full backward compatibility.
+ * connection failures plus HTTP 408, 425, 429, 500, 502, 503 and 504 — but only
+ * for idempotent methods (RFC 9110 §9.2.2), so a request the server may already
+ * have acted on is never replayed by default. The client itself stays
+ * single-attempt unless a policy is explicitly attached.
  */
 final class RetryPolicy
 {
@@ -41,6 +45,12 @@ final class RetryPolicy
      * "too early", rate limiting and the retry-safe 5xx family.
      */
     public const DEFAULT_RETRYABLE_STATUS = [408, 425, 429, 500, 502, 503, 504];
+
+    /**
+     * Methods that are safe to repeat by default: the idempotent methods of
+     * RFC 9110 §9.2.2. POST and PATCH are deliberately absent.
+     */
+    public const DEFAULT_RETRYABLE_METHODS = ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE'];
 
     /** Total number of attempts (the initial try plus retries). */
     private int $maxAttempts;
@@ -51,7 +61,10 @@ final class RetryPolicy
     /** Multiplier applied to the delay after each failed attempt. */
     private float $multiplier;
 
-    /** Hard upper bound, in seconds, on any single backoff interval. */
+    /**
+     * Hard upper bound, in seconds, on any single wait: a backoff interval or a
+     * delay taken from a `Retry-After` header.
+     */
     private float $maxDelay;
 
     /**
@@ -76,19 +89,29 @@ final class RetryPolicy
 
     /**
      * Whether a `Retry-After` response header (when present and parseable on a
-     * retryable response) should override the computed backoff delay.
+     * retryable response) should override the computed backoff delay. The
+     * header's delay is still capped at {@see self::$maxDelay}.
      */
     private bool $respectRetryAfter;
+
+    /**
+     * Upper-case HTTP methods that may be retried.
+     *
+     * @var list<string>
+     */
+    private array $retryableMethods;
 
     /**
      * @param int        $maxAttempts          Total attempts (>= 1). Clamped up to 1.
      * @param float      $baseDelay            First backoff interval in seconds (>= 0).
      * @param float      $multiplier           Per-attempt growth factor (>= 1.0).
-     * @param float      $maxDelay             Cap on any single interval in seconds (>= 0).
+     * @param float      $maxDelay             Cap on any single wait in seconds (>= 0), including a `Retry-After` delay.
      * @param float      $jitter               Jitter ratio in [0.0, 1.0].
      * @param bool       $retryOnException     Retry on transport exceptions.
      * @param list<int>|null $retryableStatusCodes Override the default transient status set.
-     * @param bool       $respectRetryAfter    Honour a `Retry-After` header when present.
+     * @param bool       $respectRetryAfter    Honour a `Retry-After` header when present (capped at $maxDelay).
+     * @param list<string>|null $retryableMethods Methods that may be retried (case-insensitive).
+     *        Null = {@see self::DEFAULT_RETRYABLE_METHODS}; add e.g. `'POST'` to opt in.
      */
     public function __construct(
         int $maxAttempts = 3,
@@ -99,6 +122,7 @@ final class RetryPolicy
         bool $retryOnException = true,
         ?array $retryableStatusCodes = null,
         bool $respectRetryAfter = true,
+        ?array $retryableMethods = null,
     ) {
         $this->maxAttempts          = max(1, $maxAttempts);
         $this->baseDelay            = max(0.0, $baseDelay);
@@ -110,6 +134,10 @@ final class RetryPolicy
             ? self::DEFAULT_RETRYABLE_STATUS
             : array_values($retryableStatusCodes);
         $this->respectRetryAfter    = $respectRetryAfter;
+        $this->retryableMethods     = array_values(array_unique(array_map(
+            static fn($method): string => strtoupper((string) $method),
+            $retryableMethods ?? self::DEFAULT_RETRYABLE_METHODS,
+        )));
     }
 
     public function getMaxAttempts(): int
@@ -153,6 +181,23 @@ final class RetryPolicy
     public function isRespectRetryAfter(): bool
     {
         return $this->respectRetryAfter;
+    }
+
+    /**
+     * @return list<string> Upper-case HTTP methods that may be retried.
+     */
+    public function getRetryableMethods(): array
+    {
+        return $this->retryableMethods;
+    }
+
+    /**
+     * Whether a request with the given HTTP method may be retried
+     * (case-insensitive).
+     */
+    public function isRetryableMethod(string $method): bool
+    {
+        return in_array(strtoupper($method), $this->retryableMethods, true);
     }
 
     /**

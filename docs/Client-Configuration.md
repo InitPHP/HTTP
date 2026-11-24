@@ -114,13 +114,15 @@ $client = (new Client())->withRetryPolicy(new RetryPolicy(
     maxAttempts: 4,    // 1 initial try + up to 3 retries
     baseDelay:   0.1,  // first backoff interval, seconds
     multiplier:  2.0,  // 0.1s, 0.2s, 0.4s, ...
-    maxDelay:    30.0, // cap on any single interval
+    maxDelay:    30.0, // cap on any single wait, Retry-After included
     jitter:      0.5,  // up to 50% random reduction
 ));
 ```
 
 - Retried by default: transport exceptions (`retryOnException`) and the status codes `408`, `425`, `429`, `500`, `502`, `503` and `504` (`retryableStatusCodes`).
-- A parseable `Retry-After` header on a retryable response overrides the computed backoff unless `respectRetryAfter` is `false`.
+- Only **idempotent methods** are retried by default: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT` and `DELETE`. A `POST` or `PATCH` is sent once; list it in `retryableMethods` to opt in.
+- A request whose body is not seekable is sent once too, because a retry could not send the body again.
+- A parseable `Retry-After` header on a retryable response overrides the computed backoff, up to `maxDelay`, unless `respectRetryAfter` is `false`.
 - A non-retryable `4xx`/`5xx` response is still **returned, never thrown**. A retryable response that exhausts `maxAttempts` is returned as-is; a transport exception that exhausts it is re-thrown.
 
 The full reference (every `RetryPolicy` parameter and clamp, the backoff formula, `Retry-After` parsing and the sleeper seam) is on the [Client Retry](Client-Retry.md) page.
