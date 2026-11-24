@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (breaking)
 
-- **`RetryPolicy` retries only idempotent methods by default** (RFC 9110 §9.2.2: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`). A `POST` or `PATCH` request is now sent once, even when a policy is attached. To restore the old behaviour, or to retry them deliberately, pass the new last constructor argument `retryableMethods`, for example `new RetryPolicy(retryableMethods: [...RetryPolicy::DEFAULT_RETRYABLE_METHODS, 'POST'])`. New API: `RetryPolicy::DEFAULT_RETRYABLE_METHODS`, `getRetryableMethods()`, `isRetryableMethod()`.
+- **`RetryPolicy` retries only idempotent methods by default** (RFC 9110 §9.2.2: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`). A `POST` or `PATCH` request is now sent once, even when a policy is attached. To retry them deliberately, pass the new last constructor argument `retryableMethods`, for example `new RetryPolicy(retryableMethods: [...RetryPolicy::DEFAULT_RETRYABLE_METHODS, 'POST', 'PATCH'])`. The list opens only the methods it names: the old behaviour (every method, including custom ones such as `QUERY` or `PROPFIND`) is restored only by naming each of them. New API: `RetryPolicy::DEFAULT_RETRYABLE_METHODS`, `getRetryableMethods()`, `isRetryableMethod()`.
 
 ### Fixed
 

@@ -114,7 +114,7 @@ $client = (new Client())->withRetryPolicy(new RetryPolicy(
     maxAttempts: 4,    // 1 initial try + up to 3 retries
     baseDelay:   0.1,  // first backoff interval, seconds
     multiplier:  2.0,  // 0.1s, 0.2s, 0.4s, ...
-    maxDelay:    30.0, // cap on any single interval
+    maxDelay:    30.0, // cap on any single wait, Retry-After included
     jitter:      0.5,  // up to 50% random reduction
 ));
 ```

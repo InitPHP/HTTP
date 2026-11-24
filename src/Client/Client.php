@@ -512,7 +512,7 @@ class Client implements \Psr\Http\Client\ClientInterface
         // that is not idempotent may already have been acted on by the server,
         // and a body that cannot be rewound would be re-sent empty. In both
         // cases the first outcome (response or exception) is the answer.
-        if (!$policy->isRetryableMethod($request->getMethod()) || !$request->getBody()->isSeekable()) {
+        if (!$this->isReplayable($policy, $request)) {
             return $this->transport($request);
         }
 
@@ -542,6 +542,25 @@ class Client implements \Psr\Http\Client\ClientInterface
             }
 
             $this->sleeper->sleep($this->retryDelay($policy, $backoff, $response, $attempt));
+        }
+    }
+
+    /**
+     * Whether $request may be sent more than once under $policy: its method
+     * is retryable and its body can be rewound. Any failure while reading
+     * those two accessors counts as "not replayable"; the single attempt that
+     * follows reports it as a {@see RequestException}, as PSR-18 requires.
+     *
+     * @param  RetryPolicy      $policy
+     * @param  RequestInterface $request
+     * @return bool
+     */
+    private function isReplayable(RetryPolicy $policy, RequestInterface $request): bool
+    {
+        try {
+            return $policy->isRetryableMethod($request->getMethod()) && $request->getBody()->isSeekable();
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 

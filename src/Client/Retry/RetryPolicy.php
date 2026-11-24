@@ -61,7 +61,10 @@ final class RetryPolicy
     /** Multiplier applied to the delay after each failed attempt. */
     private float $multiplier;
 
-    /** Hard upper bound, in seconds, on any single backoff interval. */
+    /**
+     * Hard upper bound, in seconds, on any single wait: a backoff interval or a
+     * delay taken from a `Retry-After` header.
+     */
     private float $maxDelay;
 
     /**
@@ -86,7 +89,8 @@ final class RetryPolicy
 
     /**
      * Whether a `Retry-After` response header (when present and parseable on a
-     * retryable response) should override the computed backoff delay.
+     * retryable response) should override the computed backoff delay. The
+     * header's delay is still capped at {@see self::$maxDelay}.
      */
     private bool $respectRetryAfter;
 
@@ -101,11 +105,11 @@ final class RetryPolicy
      * @param int        $maxAttempts          Total attempts (>= 1). Clamped up to 1.
      * @param float      $baseDelay            First backoff interval in seconds (>= 0).
      * @param float      $multiplier           Per-attempt growth factor (>= 1.0).
-     * @param float      $maxDelay             Cap on any single interval in seconds (>= 0).
+     * @param float      $maxDelay             Cap on any single wait in seconds (>= 0), including a `Retry-After` delay.
      * @param float      $jitter               Jitter ratio in [0.0, 1.0].
      * @param bool       $retryOnException     Retry on transport exceptions.
      * @param list<int>|null $retryableStatusCodes Override the default transient status set.
-     * @param bool       $respectRetryAfter    Honour a `Retry-After` header when present.
+     * @param bool       $respectRetryAfter    Honour a `Retry-After` header when present (capped at $maxDelay).
      * @param list<string>|null $retryableMethods Methods that may be retried (case-insensitive).
      *        Null = {@see self::DEFAULT_RETRYABLE_METHODS}; add e.g. `'POST'` to opt in.
      */

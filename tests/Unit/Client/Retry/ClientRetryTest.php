@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace InitPHP\HTTP\Tests\Unit\Client\Retry;
 
+use InitPHP\HTTP\Client\Client;
 use InitPHP\HTTP\Client\Exceptions\NetworkException;
+use InitPHP\HTTP\Client\Exceptions\RequestException;
 use InitPHP\HTTP\Client\Retry\RetryPolicy;
 use InitPHP\HTTP\Message\Request;
 use InitPHP\HTTP\Message\Response;
@@ -434,6 +436,41 @@ final class ClientRetryTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame(2, $client->calls);
+    }
+
+    public function testBodyAccessorFailureSurfacesAsRequestExceptionWithPolicyAttached(): void
+    {
+        // Without a policy the failure is reported as a RequestException (PSR-18);
+        // attaching a policy must not leak the raw exception instead.
+        $body = new class ('payload', null) extends Stream {
+            public function isSeekable(): bool
+            {
+                throw new \RuntimeException('cannot inspect the body');
+            }
+
+            public function __toString(): string
+            {
+                throw new \RuntimeException('cannot read the body');
+            }
+        };
+        $client = (new Client())->setRetryPolicy(new RetryPolicy(3, 0.0, 1.0, 1.0, 0.0));
+
+        $this->expectException(RequestException::class);
+        $client->sendRequest(new Request('PUT', 'http://127.0.0.1:1/resource', [], $body));
+    }
+
+    public function testMethodAccessorFailureSurfacesAsRequestExceptionWithPolicyAttached(): void
+    {
+        $request = new class ('GET', 'http://127.0.0.1:1/resource') extends Request {
+            public function getMethod(): string
+            {
+                throw new \RuntimeException('cannot read the method');
+            }
+        };
+        $client = (new Client())->setRetryPolicy(new RetryPolicy(3, 0.0, 1.0, 1.0, 0.0));
+
+        $this->expectException(RequestException::class);
+        $client->sendRequest($request);
     }
 
     /**
