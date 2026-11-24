@@ -80,7 +80,7 @@ $response = $response->withHeader('X-Trace-Id', $traceId);
 
 ### Authentication
 
-Add upstream auth on the way out (the incoming request's own `Authorization` header was already in `$headers`; strip it if you're using different credentials per leg):
+Add upstream auth on the way out (the incoming request's own `Authorization` header was already copied to `$outgoing`; strip it if you're using different credentials per leg):
 
 ```php
 $outgoing = $outgoing
@@ -90,19 +90,14 @@ $outgoing = $outgoing
 
 ### Caching
 
-The PSR-18 client gives you the `ResponseInterface` directly — wrap it in any cache decorator before emitting. Only cache what is identical for every caller: a `GET` that carries no credentials. A response fetched with an `Authorization` or `Cookie` header belongs to one user, and a cache key that ignores those headers would hand it to the next:
+The PSR-18 client gives you the `ResponseInterface` directly, so you can put any PSR-16 cache or cache decorator around `sendRequest()`. The package ships no caching layer, and the recipe above is **not** safe to cache as it stands: it forwards nearly every client header, so a cached response can carry one client's identity or influence to the next. Cache only when all of these hold:
 
-```php
-$cacheable = $outgoing->getMethod() === 'GET'
-    && !$outgoing->hasHeader('Authorization')
-    && !$outgoing->hasHeader('Cookie');
+- **The request is shared by construction.** Use `GET`, and build the upstream request from scratch with an allow-list of headers (for example only `Accept`) instead of copying the client's. Never cache a request that carries `Authorization`, `Cookie`, an API-key header or any other credential, and do not forward `X-Forwarded-Host` or other values derived from the client's `Host`: the upstream may put them into links or redirects in a response that everyone then receives.
+- **The cache key covers everything that shapes the response**: the upstream URI plus the value of every header you forward.
+- **The response is shareable.** Store only a `200` that has no `Set-Cookie` (a cached `Set-Cookie` hands one visitor's session id to all the others), whose `Cache-Control` does not contain `private`, `no-store` or `no-cache`, and whose `Vary` is absent or names only headers you put in the key (never `*`).
+- **You store plain data**, such as the status code, the headers and the body as a string, not the `ResponseInterface` with its stream.
 
-$response = $cacheable
-    ? $cache->fetchOrStore((string) $outgoing->getUri(), fn () => $client->sendRequest($outgoing))
-    : $client->sendRequest($outgoing);
-```
-
-The package itself ships no caching layer; that's deliberate.
+If any of these is not true, send the request through without caching it.
 
 ### Streaming proxy
 
