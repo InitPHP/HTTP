@@ -16,26 +16,43 @@ $upstreamUri = $incoming->getUri()
     ->withHost('upstream.internal')
     ->withPort(443);
 
-// 2) Strip hop-by-hop headers that MUST NOT be forwarded.
-$hopByHop = ['Connection', 'Keep-Alive', 'Proxy-Authenticate', 'Proxy-Authorization',
-             'TE', 'Trailers', 'Transfer-Encoding', 'Upgrade'];
-$headers  = array_diff_key($incoming->getHeaders(), array_flip($hopByHop));
+// 2) Hop-by-hop headers MUST NOT be forwarded. Header names are
+//    case-insensitive ("transfer-encoding" is the same header), and any header
+//    named in "Connection: a, b" is hop-by-hop as well.
+function hopByHopNames(\Psr\Http\Message\MessageInterface $message): array
+{
+    $names = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+              'te', 'trailer', 'transfer-encoding', 'upgrade'];
+    foreach (explode(',', $message->getHeaderLine('Connection')) as $name) {
+        $names[] = strtolower(trim($name));
+    }
 
-// 3) Build the upstream request from the incoming body verbatim.
+    return $names;
+}
+
+// 3) Build the upstream request from the incoming body verbatim. "Host" is not
+//    copied either: the Request derives it from $upstreamUri, so the upstream
+//    sees its own host and not the one the client chose.
+$skip     = [...hopByHopNames($incoming), 'host'];
 $outgoing = new Request(
     $incoming->getMethod(),
     $upstreamUri,
-    $headers,
+    [],
     $incoming->getBody(),
     $incoming->getProtocolVersion()
 );
+foreach ($incoming->getHeaders() as $name => $values) {
+    if (!in_array(strtolower((string) $name), $skip, true)) {
+        $outgoing = $outgoing->withHeader((string) $name, $values);
+    }
+}
 
 // 4) Ship it.
 $client   = (new Client())->withTimeout(30);
 $response = $client->sendRequest($outgoing);
 
 // 5) Strip hop-by-hop on the way out, then emit.
-foreach ($hopByHop as $h) {
+foreach (hopByHopNames($response) as $h) {
     $response = $response->withoutHeader($h);
 }
 
@@ -63,7 +80,7 @@ $response = $response->withHeader('X-Trace-Id', $traceId);
 
 ### Authentication
 
-Add upstream auth on the way out (the incoming request's own `Authorization` header was already in `$headers`; strip it if you're using different credentials per leg):
+Add upstream auth on the way out (the incoming request's own `Authorization` header was already copied to `$outgoing`; strip it if you're using different credentials per leg):
 
 ```php
 $outgoing = $outgoing
@@ -73,16 +90,14 @@ $outgoing = $outgoing
 
 ### Caching
 
-The PSR-18 client gives you the `ResponseInterface` directly — wrap it in any cache decorator before emitting:
+The PSR-18 client gives you the `ResponseInterface` directly, so you can put any PSR-16 cache or cache decorator around `sendRequest()`. The package ships no caching layer, and the recipe above is **not** safe to cache as it stands: it forwards nearly every client header, so a cached response can carry one client's identity or influence to the next. Cache only when all of these hold:
 
-```php
-$response = $cache->fetchOrStore(
-    cacheKey($outgoing),
-    fn () => $client->sendRequest($outgoing)
-);
-```
+- **The request is shared by construction.** Use `GET`, and build the upstream request from scratch with an allow-list of headers (for example only `Accept`) instead of copying the client's. Never cache a request that carries `Authorization`, `Cookie`, an API-key header or any other credential, and do not forward `X-Forwarded-Host` or other values derived from the client's `Host`: the upstream may put them into links or redirects in a response that everyone then receives.
+- **The cache key covers everything that shapes the response**: the upstream URI plus the value of every header you forward.
+- **The response is shareable.** Store only a `200` that has no `Set-Cookie` (a cached `Set-Cookie` hands one visitor's session id to all the others), whose `Cache-Control` does not contain `private`, `no-store` or `no-cache`, and whose `Vary` is absent or names only headers you put in the key (never `*`).
+- **You store plain data**, such as the status code, the headers and the body as a string, not the `ResponseInterface` with its stream.
 
-The package itself ships no caching layer; that's deliberate.
+If any of these is not true, send the request through without caching it.
 
 ### Streaming proxy
 
