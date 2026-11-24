@@ -63,4 +63,35 @@ final class RetryPolicyTest extends TestCase
         self::assertFalse($policy->shouldRetry(3), 'cap reached after the 3rd attempt');
         self::assertFalse($policy->shouldRetry(4));
     }
+
+    public function testDefaultRetryableMethodsAreTheIdempotentOnes(): void
+    {
+        $policy = new RetryPolicy();
+
+        self::assertSame(['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE'], $policy->getRetryableMethods());
+        foreach (['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE'] as $method) {
+            self::assertTrue($policy->isRetryableMethod($method), $method);
+        }
+        self::assertFalse($policy->isRetryableMethod('POST'));
+        self::assertFalse($policy->isRetryableMethod('PATCH'));
+        self::assertFalse($policy->isRetryableMethod('CONNECT'));
+    }
+
+    public function testRetryableMethodsAreCaseInsensitiveAndDeduplicated(): void
+    {
+        $policy = new RetryPolicy(retryableMethods: ['post', 'Post', 'get']);
+
+        self::assertSame(['POST', 'GET'], $policy->getRetryableMethods());
+        self::assertTrue($policy->isRetryableMethod('POST'));
+        self::assertTrue($policy->isRetryableMethod('post'));
+        self::assertFalse($policy->isRetryableMethod('PUT'), 'a custom list replaces the default');
+    }
+
+    public function testEmptyRetryableMethodsDisablesRetries(): void
+    {
+        $policy = new RetryPolicy(retryableMethods: []);
+
+        self::assertSame([], $policy->getRetryableMethods());
+        self::assertFalse($policy->isRetryableMethod('GET'));
+    }
 }

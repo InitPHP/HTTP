@@ -8,6 +8,7 @@ use InitPHP\HTTP\Client\Exceptions\NetworkException;
 use InitPHP\HTTP\Client\Retry\RetryPolicy;
 use InitPHP\HTTP\Message\Request;
 use InitPHP\HTTP\Message\Response;
+use InitPHP\HTTP\Message\Stream;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -253,5 +254,201 @@ final class ClientRetryTest extends TestCase
         self::assertNotSame($client, $clone);
         self::assertNull($client->getRetryPolicy());
         self::assertInstanceOf(RetryPolicy::class, $clone->getRetryPolicy());
+    }
+
+    public function testNonIdempotentMethodIsNotRetriedOnRetryableStatus(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(new Request('POST', 'https://api.example.com/orders'));
+
+        self::assertSame(503, $response->getStatusCode(), 'the first response is returned as is');
+        self::assertSame(1, $client->calls);
+        self::assertCount(0, $sleeper->sleeps);
+    }
+
+    public function testNonIdempotentMethodIsNotRetriedOnTransportException(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->networkError(), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        try {
+            $client->sendRequest(new Request('PATCH', 'https://api.example.com/orders/1'));
+            self::fail('The first transport exception must propagate.');
+        } catch (NetworkException $e) {
+            self::assertSame(1, $client->calls);
+            self::assertCount(0, $sleeper->sleeps);
+        }
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function idempotentMethodProvider(): array
+    {
+        return [
+            'GET'     => ['GET'],
+            'HEAD'    => ['HEAD'],
+            'OPTIONS' => ['OPTIONS'],
+            'TRACE'   => ['TRACE'],
+            'PUT'     => ['PUT'],
+            'DELETE'  => ['DELETE'],
+            'put (lower case)' => ['put'],
+        ];
+    }
+
+    /**
+     * @dataProvider idempotentMethodProvider
+     */
+    public function testIdempotentMethodsAreRetriedByDefault(string $method): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(new Request($method, 'https://api.example.com/resource'));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(2, $client->calls);
+    }
+
+    public function testNonIdempotentMethodCanBeOptedIn(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(201)]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0, retryableMethods: ['POST']));
+
+        $response = $client->sendRequest(new Request('POST', 'https://api.example.com/orders'));
+
+        self::assertSame(201, $response->getStatusCode());
+        self::assertSame(2, $client->calls);
+    }
+
+    public function testMethodOutsideCustomListIsNotRetried(): void
+    {
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper(new RecordingSleeper())
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0, retryableMethods: ['POST']));
+
+        $response = $client->sendRequest($this->request());
+
+        self::assertSame(503, $response->getStatusCode(), 'GET is not in the custom list');
+        self::assertSame(1, $client->calls);
+    }
+
+    public function testRetryAfterIsCappedByMaxDelay(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([
+            $this->response(503, ['Retry-After' => '3600']),
+            $this->response(200),
+        ]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.05, 2.0, 30.0, 0.0));
+
+        $client->sendRequest($this->request());
+
+        self::assertCount(1, $sleeper->sleeps);
+        self::assertEqualsWithDelta(30.0, $sleeper->sleeps[0], 1e-9);
+    }
+
+    public function testHttpDateRetryAfterIsCappedByMaxDelay(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $date = \gmdate('D, d M Y H:i:s', \time() + 7200) . ' GMT';
+        $client = new ScriptedClient([
+            $this->response(429, ['Retry-After' => $date]),
+            $this->response(200),
+        ]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.05, 2.0, 10.0, 0.0));
+
+        $client->sendRequest($this->request());
+
+        self::assertEqualsWithDelta(10.0, $sleeper->sleeps[0], 1e-9);
+    }
+
+    public function testRetryAfterBelowMaxDelayIsUsedAsIs(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([
+            $this->response(429, ['Retry-After' => '2']),
+            $this->response(200),
+        ]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.05, 2.0, 30.0, 0.0));
+
+        $client->sendRequest($this->request());
+
+        self::assertEqualsWithDelta(2.0, $sleeper->sleeps[0], 1e-9);
+    }
+
+    public function testRequestWithNonSeekableBodyIsNotRetriedOnStatus(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(
+            new Request('PUT', 'https://api.example.com/resource', [], self::nonSeekableBody('payload')),
+        );
+
+        self::assertSame(503, $response->getStatusCode(), 'the first response is returned as is');
+        self::assertSame(1, $client->calls);
+        self::assertCount(0, $sleeper->sleeps);
+    }
+
+    public function testRequestWithNonSeekableBodyIsNotRetriedOnException(): void
+    {
+        $client = new ScriptedClient([$this->networkError(), $this->response(200)]);
+        $client->setSleeper(new RecordingSleeper())
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        try {
+            $client->sendRequest(
+                new Request('PUT', 'https://api.example.com/resource', [], self::nonSeekableBody('payload')),
+            );
+            self::fail('The first transport exception must propagate.');
+        } catch (NetworkException $e) {
+            self::assertSame(1, $client->calls);
+        }
+    }
+
+    public function testRequestWithSeekableBodyIsStillRetried(): void
+    {
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper(new RecordingSleeper())
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(
+            new Request('PUT', 'https://api.example.com/resource', [], new Stream('payload', null)),
+        );
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(2, $client->calls);
+    }
+
+    /**
+     * A readable stream that cannot be rewound: one end of a socket pair that
+     * already holds the payload.
+     */
+    public static function nonSeekableBody(string $payload): Stream
+    {
+        $pair = \stream_socket_pair(\STREAM_PF_UNIX, \STREAM_SOCK_STREAM, \STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        \fwrite($pair[0], $payload);
+        \fclose($pair[0]);
+        $body = new Stream($pair[1]);
+        self::assertFalse($body->isSeekable());
+
+        return $body;
     }
 }

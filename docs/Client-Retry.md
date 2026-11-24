@@ -15,14 +15,22 @@ $response = $client->get('https://api.example.com/reports');
 
 With a policy attached, `sendRequest()` runs this loop (the convenience methods such as `get()` and `post()` go through it too):
 
+0. If the request must not be replayed (see [Which requests are retried](#which-requests-are-retried)), send it once and stop: the first response is returned, or the first exception thrown.
 1. Send the request. This is attempt 1.
 2. If the transport throws a `Psr\Http\Client\NetworkExceptionInterface` (DNS, TCP, TLS, timeout): retry when the policy has `retryOnException` on and another attempt is allowed. Otherwise the exception is re-thrown.
 3. If a response arrives and its status is **not** in the retryable set, return it. This is also true for `4xx` and `5xx` responses: PSR-18 says they are returned, never thrown.
 4. If its status is retryable and another attempt is allowed, wait, then go back to step 1. If no attempt is left, the last response is returned as-is.
 
-The wait is the [`Backoff`](#backoff) delay for that attempt, or the `Retry-After` value when the policy honours it (see [`RetryAfter`](#retryafter)).
+The wait is the [`Backoff`](#backoff) delay for that attempt, or the `Retry-After` value when the policy honours it (see [`RetryAfter`](#retryafter)). Either way it never exceeds `maxDelay`.
 
-> **The method is not considered.** The policy retries `POST`, `PATCH` and every other method the same way. A request that failed after the server already acted on it can therefore run twice. Attach a policy only where that is safe, for example for idempotent requests, or make the operation idempotent on the server (an idempotency key, for example). Because `withRetryPolicy()` returns a clone, you can keep a retrying client for safe calls and a plain one for the rest.
+### Which requests are retried
+
+A retry sends the request again, so two kinds of request are **sent exactly once**, whatever the status or exception:
+
+- **A method that is not in `retryableMethods`.** By default only the idempotent methods of RFC 9110 §9.2.2 are retried: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT` and `DELETE`. `POST` and `PATCH` are not, because the server may already have acted on a request that failed on the way back, and a retry would run it twice. To retry them anyway, list them in `retryableMethods` (see below), ideally together with an idempotency key the server honours.
+- **A request whose body cannot be rewound.** Each attempt reads the body from the start. A stream that is not seekable (a socket, a pipe, a request body read once) is already used up after the first attempt, so a retry would send an **empty** body. Such a request is not retried; its first response is returned, or its first exception is thrown. Strings, `php://temp` and files are seekable and are retried normally.
+
+Because `withRetryPolicy()` returns a clone, you can keep a retrying client for safe calls and a plain one for the rest.
 
 Errors that are not transport failures are not retried: `RequestException` (a request that cannot be marshalled) and `ClientException` (for example, cURL cannot be initialised) propagate immediately. See [Client Exceptions](Client-Exceptions.md).
 
@@ -40,6 +48,7 @@ new RetryPolicy(
     bool $retryOnException = true,
     ?array $retryableStatusCodes = null,   // null = RetryPolicy::DEFAULT_RETRYABLE_STATUS
     bool $respectRetryAfter = true,
+    ?array $retryableMethods = null,       // null = RetryPolicy::DEFAULT_RETRYABLE_METHODS
 )
 ```
 
@@ -52,9 +61,10 @@ new RetryPolicy(
 | `jitter` | `0.5` | Ratio in `[0.0, 1.0]`. Out-of-range values are clamped. `0.0` disables jitter. |
 | `retryOnException` | `true` | Retry when the transport throws a network exception. |
 | `retryableStatusCodes` | see below | Status codes that trigger a retry. Passing a list replaces the default set; it is not merged with it. |
-| `respectRetryAfter` | `true` | Let a parseable `Retry-After` header on a retryable response set the wait. |
+| `respectRetryAfter` | `true` | Let a parseable `Retry-After` header on a retryable response set the wait, capped at `maxDelay`. |
+| `retryableMethods` | see below | HTTP methods that may be retried, compared case-insensitively. Passing a list replaces the default set; it is not merged with it. An empty list never retries. |
 
-The default retryable set is the constant `RetryPolicy::DEFAULT_RETRYABLE_STATUS`: `408`, `425`, `429`, `500`, `502`, `503` and `504`.
+The default retryable set is the constant `RetryPolicy::DEFAULT_RETRYABLE_STATUS`: `408`, `425`, `429`, `500`, `502`, `503` and `504`. The default methods are the constant `RetryPolicy::DEFAULT_RETRYABLE_METHODS`: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT` and `DELETE`.
 
 ```php
 // Retry only on rate limiting and 503, and never on transport errors.
@@ -62,6 +72,12 @@ $policy = new RetryPolicy(
     maxAttempts: 5,
     retryOnException: false,
     retryableStatusCodes: [429, 503],
+);
+
+// Also retry POST. Only do this when the endpoint is idempotent, for example
+// because it honours an Idempotency-Key header.
+$policy = new RetryPolicy(
+    retryableMethods: [...RetryPolicy::DEFAULT_RETRYABLE_METHODS, 'POST'],
 );
 ```
 
@@ -76,8 +92,10 @@ $policy = new RetryPolicy(
 | `getJitter()` | `float` | The (clamped) jitter ratio. |
 | `isRetryOnException()` | `bool` | Whether network exceptions are retried. |
 | `getRetryableStatusCodes()` | `list<int>` | The retryable status codes. |
+| `getRetryableMethods()` | `list<string>` | The retryable methods, upper-cased and without duplicates. |
 | `isRespectRetryAfter()` | `bool` | Whether `Retry-After` is honoured. |
 | `isRetryableStatus(int $statusCode)` | `bool` | Whether the status is in the retryable set (strict comparison). |
+| `isRetryableMethod(string $method)` | `bool` | Whether the method may be retried (case-insensitive). |
 | `shouldRetry(int $attempt)` | `bool` | `true` when `$attempt < maxAttempts`. `$attempt` is 1-based: `1` means the first try has just finished. |
 
 The policy has no setters. To change a value, build a new `RetryPolicy`.
@@ -153,7 +171,7 @@ RetryAfter::parse('Wed, 21 Oct 2015 07:28:00 GMT', 1445412420); // 60.0
 RetryAfter::parse('');                                      // null
 ```
 
-In the client, `Retry-After` applies to retryable **responses** only, not to network exceptions, and only when `respectRetryAfter` is `true`. When it applies, its value is used **as is**: it is neither jittered nor capped by `maxDelay`. A server that sends `Retry-After: 3600` makes the client wait an hour before the next attempt. If that is too long for your use case, set `respectRetryAfter: false` so the capped backoff is used, or keep `maxAttempts` low.
+In the client, `Retry-After` applies to retryable **responses** only, not to network exceptions, and only when `respectRetryAfter` is `true`. When it applies, its value is not jittered but it **is capped by `maxDelay`**: a server that sends `Retry-After: 3600` with the default `maxDelay` of `30.0` makes the client wait 30 seconds, not an hour. Lower `maxDelay` to bound the wait further, or set `respectRetryAfter: false` to ignore the header and use the backoff delay.
 
 ## `SleeperInterface` and `Sleeper`
 
