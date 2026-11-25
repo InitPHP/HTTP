@@ -20,15 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New [Client Retry](docs/Client-Retry.md) page: every `RetryPolicy` argument and
   clamp, the backoff formula, `Retry-After` parsing and the sleeper seam. It is
-  linked from the README, the API reference, Client Configuration, the PSR-18 client
-  page and the sidebar, which now also describe the idempotent-only retry and the
-  `Retry-After` cap.
+  linked from the API reference, Client Configuration, the PSR-18 client page and
+  the sidebar. The README and Client Configuration describe the idempotent-only
+  retry, the non-seekable body rule and the `Retry-After` cap.
 - The recipes were corrected: proxying (hop-by-hop headers are matched
   case-insensitively and by `Connection`, `Host` is not copied, a caching caveat),
   JSON responses (CORS answers only allow-listed origins instead of reflecting
   `Origin`), redirects (the session cookie is `Secure`) and file uploads (the
   server picks the name, the detected media type and a size limit are enforced).
 - The `MessageTrait` anchor in the API reference was repaired.
+- The deprecation notes for the `Facadeble[Interface]` aliases (README, Migration
+  Guide, Facades) now say they will be removed in a future major release; they
+  said 4.0, and the aliases are still present in 5.0.0.
 
 ## [4.0.0] - 2026-11-22
 

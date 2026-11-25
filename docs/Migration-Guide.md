@@ -123,7 +123,7 @@ $client = (new Client())->withTimeout(0)->withConnectTimeout(10);
 + use InitPHP\HTTP\Facade\Interfaces\FacadableInterface;
 ```
 
-The old names remain as `@deprecated` aliases and continue to work, but will be removed in 4.0.
+The old names remain as `@deprecated` aliases and continue to work, but will be removed in a future major release.
 
 ### 10. `Response::redirect()` always sets `Location`
 

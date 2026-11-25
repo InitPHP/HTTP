@@ -275,7 +275,7 @@ Version 3.0 is a breaking release. The highlights:
 - `Request::createFromGlobals()` and the magic `$request->name = $value` parameter bag have been **removed**. Use `ServerRequest::createFromGlobals()` (now stateless) and `$request->getParsedBody()` instead.
 - `Client::sendRequest()` no longer inspects the concrete `Request` class — it only sees the PSR-7 contract. Pre-encode array/DOM/XML payloads before calling.
 - `Client` now defaults to a 30 s request timeout and 10 s connect timeout. Pass `->withTimeout(0)` if you need the legacy "no timeout" behaviour.
-- The misspelled facade trait/interface names `Facadeble[Interface]` are now `Facadable[Interface]`; the old names remain as `@deprecated` aliases and will be removed in 4.0.
+- The misspelled facade trait/interface names `Facadeble[Interface]` are now `Facadable[Interface]`; the old names remain as `@deprecated` aliases and will be removed in a future major release.
 
 See [`docs/Migration-Guide.md`](docs/Migration-Guide.md) for the full migration walk-through and a copy-pasteable code-mod list.
 

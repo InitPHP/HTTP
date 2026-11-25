@@ -102,7 +102,7 @@ use InitPHP\HTTP\Facade\Traits\Facadeble;
 use InitPHP\HTTP\Facade\Interfaces\FacadebleInterface;
 ```
 
-The deprecated names will be removed in the next major release.
+The deprecated names will be removed in a future major release.
 
 ## See also
 
