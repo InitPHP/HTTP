@@ -5,7 +5,7 @@ All notable changes to **initphp/http** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.0.0] - 2026-11-25
 
 ### Changed (breaking)
 
@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Retry-After` is now capped at the policy's `maxDelay`. Previously a server could make the client wait for as long as it asked (`Retry-After: 3600` meant an hour).
 - A request whose body is not seekable is no longer retried. The retry used to send an empty body, because the first attempt had already consumed the stream; now the first response is returned, or the first exception is thrown.
+
+### Documentation
+
+- New [Client Retry](docs/Client-Retry.md) page: every `RetryPolicy` argument and
+  clamp, the backoff formula, `Retry-After` parsing and the sleeper seam. It is
+  linked from the README, the API reference, Client Configuration, the PSR-18 client
+  page and the sidebar, which now also describe the idempotent-only retry and the
+  `Retry-After` cap.
+- The recipes were corrected: proxying (hop-by-hop headers are matched
+  case-insensitively and by `Connection`, `Host` is not copied, a caching caveat),
+  JSON responses (CORS answers only allow-listed origins instead of reflecting
+  `Origin`), redirects (the session cookie is `Secure`) and file uploads (the
+  server picks the name, the detected media type and a size limit are enforced).
+- The `MessageTrait` anchor in the API reference was repaired.
 
 ## [4.0.0] - 2026-11-22
 
