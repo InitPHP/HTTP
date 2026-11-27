@@ -65,6 +65,12 @@ final class RetryAfterTest extends TestCase
             'date with zone'     => ['Wed, 21 Oct 2015 07:28:00 +0300'],
             'nonexistent day'    => ['Tue, 31 Feb 2015 07:28:00 GMT'],
             'hour out of range'  => ['Wed, 21 Oct 2015 25:00:00 GMT'],
+            'wrong weekday (IMF-fixdate)' => ['Mon, 21 Oct 2015 07:28:00 GMT'],
+            'wrong weekday (RFC 850)'     => ['Monday, 21-Oct-15 07:28:00 GMT'],
+            'wrong weekday (asctime)'     => ['Mon Oct 21 07:28:00 2015'],
+            'wrong weekday, one day off'  => ['Tue, 21 Oct 2015 07:28:00 GMT'],
+            'full name in IMF-fixdate'    => ['Wednesday, 21 Oct 2015 07:28:00 GMT'],
+            'abbreviated name in RFC 850' => ['Wed, 21-Oct-15 07:28:00 GMT'],
         ];
     }
 
@@ -85,11 +91,51 @@ final class RetryAfterTest extends TestCase
         self::assertEqualsWithDelta(60.0, $delay, 1e-9);
     }
 
-    public function testRfc850TwoDigitYearInTheFarFutureMeansThePast(): void
+    public function testRfc850TwoDigitYearBeyondFiftyYearsMeansThePast(): void
     {
-        // 94 would be 2094 under a plain "20yy" reading, over 50 years ahead
-        // of any current date, so it stands for 1994 and clamps to zero.
-        self::assertSame(0.0, RetryAfter::parse('Sunday, 06-Nov-94 08:49:37 GMT'));
+        // With "now" in 2015, 94 would be 2094 (over 50 years ahead), so it
+        // stands for 1994 and the delay clamps to zero. A plain "20yy" reading
+        // would give a 79-year wait.
+        $now = \strtotime('Wed, 21 Oct 2015 07:28:00 GMT');
+        self::assertIsInt($now);
+
+        self::assertSame(0.0, RetryAfter::parse('Sunday, 06-Nov-94 08:49:37 GMT', $now));
+    }
+
+    public function testRfc850TwoDigitYearWithinFiftyYearsMeansTheFuture(): void
+    {
+        // PHP's `y` token pivots at 1970 and would read 75 as 1975 (the past).
+        // RFC 9110 puts 2075 within 50 years of a 2030 "now", so it is a date
+        // 45 years ahead.
+        $now = \strtotime('Tue, 01 Jan 2030 00:00:00 GMT');
+        self::assertIsInt($now);
+
+        $delay = RetryAfter::parse('Tuesday, 01-Jan-75 00:00:00 GMT', $now);
+        self::assertNotNull($delay);
+        self::assertGreaterThan(0.0, $delay);
+        self::assertEqualsWithDelta(\strtotime('2075-01-01 00:00:00 GMT') - $now, $delay, 1e-9);
+    }
+
+    public function testRfc850TwoDigitYearJustInsideAndOutsideTheFiftyYearWindow(): void
+    {
+        $now = \strtotime('Thu, 01 Jan 2026 00:00:00 GMT');
+        self::assertIsInt($now);
+
+        // 2076-01-01 is exactly 50 years ahead: still the future.
+        self::assertGreaterThan(0.0, RetryAfter::parse('Wednesday, 01-Jan-76 00:00:00 GMT', $now));
+        // 2077-01-01 is past the window: read as 1977, so zero.
+        self::assertSame(0.0, RetryAfter::parse('Saturday, 01-Jan-77 00:00:00 GMT', $now));
+    }
+
+    public function testWeekdayNameIsValidatedNotUsedToShiftTheDate(): void
+    {
+        $now = \strtotime('Sun, 06 Nov 1994 08:49:37 GMT');
+        self::assertIsInt($now);
+
+        self::assertSame(0.0, RetryAfter::parse('Sun, 06 Nov 1994 08:49:37 GMT', $now));
+        self::assertNull(RetryAfter::parse('Mon, 06 Nov 1994 08:49:37 GMT', $now));
+        self::assertNull(RetryAfter::parse('Monday, 06-Nov-94 08:49:37 GMT', $now));
+        self::assertNull(RetryAfter::parse('Mon Nov  6 08:49:37 1994', $now));
     }
 
     public function testParsesAsctimeDate(): void

@@ -22,7 +22,6 @@ use Psr\Http\Message\ResponseInterface;
 use function is_array;
 use function max;
 use function preg_match;
-use function preg_replace;
 use function time;
 use function trim;
 
@@ -84,7 +83,7 @@ final class RetryAfter
             return (float) $value;
         }
 
-        $timestamp = self::parseHttpDate($value);
+        $timestamp = self::parseHttpDate($value, $now);
         if ($timestamp === null) {
             return null;
         }
@@ -96,61 +95,82 @@ final class RetryAfter
 
     /**
      * Parse an HTTP-date (RFC 9110 §5.6.7) into a Unix timestamp, reading it as
-     * GMT. Returns null when the value matches none of the three formats or
-     * names a date that does not exist (such as 31 February).
+     * GMT. Returns null when the value matches none of the three formats,
+     * names a date that does not exist (such as 31 February) or carries a day
+     * name that does not belong to its date (`Mon, 21 Oct 2015 ...` is a
+     * Wednesday).
      *
-     * @param string $value
+     * The day name is checked here instead of being left to
+     * DateTimeImmutable::createFromFormat(): its `D` and `l` tokens do not
+     * validate the name, they shift the date to the next such weekday.
+     *
+     * @param string   $value
+     * @param int|null $now Reference "now" for the RFC 850 two-digit year rule.
      * @return int|null
      */
-    private static function parseHttpDate(string $value): ?int
+    private static function parseHttpDate(string $value, ?int $now): ?int
     {
         $utc = new DateTimeZone('UTC');
 
         // IMF-fixdate: Sun, 06 Nov 1994 08:49:37 GMT
-        if (preg_match('/^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/D', $value) === 1) {
-            return self::fromFormat('D, d M Y H:i:s \G\M\T', $value, $utc);
+        if (preg_match('/^([A-Z][a-z]{2}), (\d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2}) GMT$/D', $value, $m) === 1) {
+            $date = self::fromFormat('d M Y H:i:s', $m[2], $utc);
+
+            return self::hasWeekday($date, 'D', $m[1]) ? $date?->getTimestamp() : null;
         }
 
         // RFC 850 (obsolete): Sunday, 06-Nov-94 08:49:37 GMT
-        if (preg_match('/^[A-Z][a-z]{5,8}, \d{2}-[A-Z][a-z]{2}-\d{2} \d{2}:\d{2}:\d{2} GMT$/D', $value) === 1) {
-            $timestamp = self::fromFormat('l, d-M-y H:i:s \G\M\T', $value, $utc);
-            if ($timestamp === null) {
-                return null;
-            }
-
+        if (preg_match('/^([A-Z][a-z]{5,8}), (\d{2})-([A-Z][a-z]{2})-(\d{2}) (\d{2}:\d{2}:\d{2}) GMT$/D', $value, $m) === 1) {
             // RFC 9110 §5.6.7: a two-digit year that would land more than 50
             // years in the future stands for the most recent past year with
-            // the same last two digits.
-            $limit = new DateTimeImmutable('+50 years', $utc);
-            if ($timestamp > $limit->getTimestamp()) {
-                $shifted = (new DateTimeImmutable('@' . $timestamp))->setTimezone($utc)->modify('-100 years');
-
-                return $shifted->getTimestamp();
+            // the same last two digits. PHP's own `y` token uses a fixed 1970
+            // pivot instead, so the century is chosen here.
+            $limit = (new DateTimeImmutable('@' . ($now ?? time())))->modify('+50 years')->getTimestamp();
+            foreach (['20', '19'] as $century) {
+                $date = self::fromFormat('d-M-Y H:i:s', $m[2] . '-' . $m[3] . '-' . $century . $m[4] . ' ' . $m[5], $utc);
+                if ($date !== null && $date->getTimestamp() <= $limit) {
+                    break;
+                }
             }
 
-            return $timestamp;
+            return self::hasWeekday($date, 'l', $m[1]) ? $date?->getTimestamp() : null;
         }
 
         // asctime: Sun Nov  6 08:49:37 1994 (the day is space-padded)
-        if (preg_match('/^[A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} \d{4}$/D', $value) === 1) {
-            $single = preg_replace('/ {2,}/', ' ', $value);
+        if (preg_match('/^([A-Z][a-z]{2}) ([A-Z][a-z]{2}) ([ \d]\d) (\d{2}:\d{2}:\d{2}) (\d{4})$/D', $value, $m) === 1) {
+            $date = self::fromFormat('j M Y H:i:s', trim($m[3]) . ' ' . $m[2] . ' ' . $m[5] . ' ' . $m[4], $utc);
 
-            return $single === null ? null : self::fromFormat('D M j H:i:s Y', $single, $utc);
+            return self::hasWeekday($date, 'D', $m[1]) ? $date?->getTimestamp() : null;
         }
 
         return null;
     }
 
     /**
-     * Build a timestamp from $value with $format in $zone, rejecting values
-     * that PHP would silently roll over (31 February, 25:00:00, ...).
+     * Whether $date falls on the weekday named by $name. $token is the
+     * DateTimeInterface::format() token for the name's form: `D` for the
+     * three-letter abbreviation, `l` for the full name.
+     *
+     * @param DateTimeImmutable|null $date
+     * @param string                 $token
+     * @param string                 $name
+     * @return bool
+     */
+    private static function hasWeekday(?DateTimeImmutable $date, string $token, string $name): bool
+    {
+        return $date !== null && $date->format($token) === $name;
+    }
+
+    /**
+     * Build a date from $value with $format in $zone, rejecting values that
+     * PHP would silently roll over (31 February, 25:00:00, ...).
      *
      * @param string       $format
      * @param string       $value
      * @param DateTimeZone $zone
-     * @return int|null
+     * @return DateTimeImmutable|null
      */
-    private static function fromFormat(string $format, string $value, DateTimeZone $zone): ?int
+    private static function fromFormat(string $format, string $value, DateTimeZone $zone): ?DateTimeImmutable
     {
         $date   = DateTimeImmutable::createFromFormat('!' . $format, $value, $zone);
         $errors = DateTimeImmutable::getLastErrors();
@@ -158,6 +178,6 @@ final class RetryAfter
             return null;
         }
 
-        return $date->getTimestamp();
+        return $date;
     }
 }
