@@ -37,6 +37,12 @@ use function strtoupper;
  * for idempotent methods (RFC 9110 §9.2.2), so a request the server may already
  * have acted on is never replayed by default. The client itself stays
  * single-attempt unless a policy is explicitly attached.
+ *
+ * A request whose body cannot be sent twice is never retried, whatever the
+ * policy says: its first response is returned, or its first exception is
+ * thrown. That covers a body stream that is not seekable and a client whose
+ * cURL options set a read source (`CURLOPT_INFILE`, `CURLOPT_READFUNCTION` or
+ * `CURLOPT_READDATA`), because the first attempt consumes it.
  */
 final class RetryPolicy
 {

@@ -25,10 +25,11 @@ The wait is the [`Backoff`](#backoff) delay for that attempt, or the `Retry-Afte
 
 ### Which requests are retried
 
-A retry sends the request again, so two kinds of request are **sent exactly once**, whatever the status or exception:
+A retry sends the request again, so three kinds of request are **sent exactly once**, whatever the status or exception:
 
 - **A method that is not in `retryableMethods`.** By default only the idempotent methods of RFC 9110 §9.2.2 are retried: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT` and `DELETE`. `POST` and `PATCH` are not, because the server may already have acted on a request that failed on the way back, and a retry would run it twice. To retry them anyway, list them in `retryableMethods` (see below), ideally together with an idempotency key the server honours.
 - **A request whose body cannot be rewound.** Each attempt reads the body from the start. A stream that is not seekable (a socket, a pipe, a request body read once) is already used up after the first attempt, so a retry would send an **empty** body. Such a request is not retried; its first response is returned, or its first exception is thrown. Strings, `php://temp` and files are seekable and are retried normally.
+- **A request on a client whose cURL options set a read source.** `CURLOPT_INFILE`, `CURLOPT_READFUNCTION` and `CURLOPT_READDATA` (the same option as `CURLOPT_INFILE` in ext-curl) make cURL read the body from a resource or a callback. The first attempt consumes it and it cannot be rewound, so a retry would send an empty body. While any of them is set through `setCurlOptions()`, the client sends each request once: the first response is returned, or the first exception is thrown. Clear the option (or use a client without it) to get retries back.
 
 Because `withRetryPolicy()` returns a clone, you can keep a retrying client for safe calls and a plain one for the rest.
 
@@ -148,7 +149,7 @@ $backoff->delayFor(3);     // 2.0, the lower edge of the jitter range
 
 ## `RetryAfter`
 
-`final class RetryAfter` reads the `Retry-After` response header (RFC 7231 §7.1.3). Both methods are static and return a delay in seconds as a `?float`; `null` means "no usable value", and the client then falls back to the backoff delay.
+`final class RetryAfter` reads the `Retry-After` response header (RFC 9110 §10.2.3). Both methods are static and return a delay in seconds as a `?float`; `null` means "no usable value", and the client then falls back to the backoff delay.
 
 | Method | Description |
 | --- | --- |
@@ -160,8 +161,9 @@ $backoff->delayFor(3);     // 2.0, the lower edge of the jitter range
 `parse()` follows these rules, in order:
 
 1. The value is trimmed. An empty string gives `null`.
-2. A value made only of digits is a number of seconds: `'120'` gives `120.0`.
-3. Anything else goes to `strtotime()`. If that fails, the result is `null`. Otherwise the result is the difference to `$now`, never below `0`, so a date in the past gives `0.0`.
+2. A value made only of ASCII digits (`^\d+$`) is a number of seconds: `'120'` gives `120.0`. A sign (`-5`, `+5`), a fraction (`1.5`) or an exponent (`1e3`) is not delay-seconds, and the value is not tried as a date either.
+3. A value in one of the three HTTP-date formats of RFC 9110 §5.6.7 is a date: IMF-fixdate (`Sun, 06 Nov 1994 08:49:37 GMT`), the obsolete RFC 850 form (`Sunday, 06-Nov-94 08:49:37 GMT`) and asctime (`Sun Nov  6 08:49:37 1994`). Every form is read as **GMT**; the PHP default time zone is never used, so the result does not depend on `date_default_timezone_set()` or `TZ`. In the RFC 850 form a two-digit year that would be more than 50 years ahead stands for the most recent past year with those digits. The result is the difference to `$now`, never below `0`, so a date in the past gives `0.0`. A date that does not exist (`31 Feb`) is `null`.
+4. Anything else is `null`, including relative phrases such as `tomorrow`, `now` or `+1 hour`, and ISO 8601 or zoned dates. The client then uses the backoff delay.
 
 ```php
 use InitPHP\HTTP\Client\Retry\RetryAfter;

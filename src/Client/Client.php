@@ -49,6 +49,17 @@ use const FILTER_VALIDATE_URL;
  */
 class Client implements \Psr\Http\Client\ClientInterface
 {
+    /**
+     * cURL options that make cURL read the request body from a resource or a
+     * callback instead of the PSR-7 stream. Such a source is consumed by the
+     * first attempt and cannot be rewound, so a request with any of them set
+     * is never retried. CURLOPT_READDATA is the same option number as
+     * CURLOPT_INFILE in ext-curl, so listing CURLOPT_INFILE covers both.
+     *
+     * @var list<int>
+     */
+    private const NON_REPLAYABLE_CURL_OPTIONS = [\CURLOPT_INFILE, \CURLOPT_READFUNCTION];
+
     protected string $userAgent = 'InitPHP HTTP PSR-18 Client cURL';
 
     /**
@@ -510,8 +521,10 @@ class Client implements \Psr\Http\Client\ClientInterface
 
         // A request that must not be replayed gets a single attempt: a method
         // that is not idempotent may already have been acted on by the server,
-        // and a body that cannot be rewound would be re-sent empty. In both
-        // cases the first outcome (response or exception) is the answer.
+        // and a body that cannot be rewound (a PSR-7 stream that is not
+        // seekable, or a cURL read source set through CURLOPT_INFILE or
+        // CURLOPT_READFUNCTION) would be re-sent empty. In every case the
+        // first outcome (response or exception) is the answer.
         if (!$this->isReplayable($policy, $request)) {
             return $this->transport($request);
         }
@@ -547,9 +560,12 @@ class Client implements \Psr\Http\Client\ClientInterface
 
     /**
      * Whether $request may be sent more than once under $policy: its method
-     * is retryable and its body can be rewound. Any failure while reading
-     * those two accessors counts as "not replayable"; the single attempt that
-     * follows reports it as a {@see RequestException}, as PSR-18 requires.
+     * is retryable, its body can be rewound and no cURL read source is
+     * configured (CURLOPT_INFILE, CURLOPT_READFUNCTION and CURLOPT_READDATA
+     * feed the body from a resource or callback that the first attempt has
+     * already consumed). Any failure while reading the request accessors
+     * counts as "not replayable"; the single attempt that follows reports it
+     * as a {@see RequestException}, as PSR-18 requires.
      *
      * @param  RetryPolicy      $policy
      * @param  RequestInterface $request
@@ -557,6 +573,12 @@ class Client implements \Psr\Http\Client\ClientInterface
      */
     private function isReplayable(RetryPolicy $policy, RequestInterface $request): bool
     {
+        foreach (self::NON_REPLAYABLE_CURL_OPTIONS as $option) {
+            if (\array_key_exists($option, $this->curlOptions)) {
+                return false;
+            }
+        }
+
         try {
             return $policy->isRetryableMethod($request->getMethod()) && $request->getBody()->isSeekable();
         } catch (\Throwable $e) {

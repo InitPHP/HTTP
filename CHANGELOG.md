@@ -5,6 +5,17 @@ All notable changes to **initphp/http** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `RetryAfter` now follows RFC 9110 §10.2.3. Delay-seconds is only a run of ASCII digits, so `-5` no longer becomes a date (it was read as an offset of 18000 seconds), and `1.5` or relative words such as `tomorrow` and `now` are ignored (`null`, so the client falls back to its backoff). All three HTTP-date formats (IMF-fixdate, RFC 850 and asctime) are read as GMT; asctime used to be read in PHP's default time zone, which shifted the delay by the zone's offset.
+- A request is no longer retried while the client's cURL options set `CURLOPT_INFILE`, `CURLOPT_READFUNCTION` or `CURLOPT_READDATA`. The first attempt consumes that read source, so the retry sent an empty body; now the first response is returned, or the first exception is thrown.
+
+### Documentation
+
+- [Client Retry](docs/Client-Retry.md), Client Configuration, the README and the `RetryPolicy` docblock describe the stricter `Retry-After` parsing and the cURL read-source rule.
+
 ## [5.0.0] - 2026-11-25
 
 ### Changed (breaking)
