@@ -424,6 +424,66 @@ final class ClientRetryTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string, array{int, callable(): mixed}>
+     */
+    public static function curlReadSources(): array
+    {
+        return [
+            'CURLOPT_INFILE'       => [\CURLOPT_INFILE, static fn() => \fopen('php://memory', 'r+')],
+            'CURLOPT_READDATA'     => [\CURLOPT_READDATA, static fn() => \fopen('php://memory', 'r+')],
+            'CURLOPT_READFUNCTION' => [\CURLOPT_READFUNCTION, static fn() => static fn($ch, $fd, $length) => ''],
+        ];
+    }
+
+    /**
+     * @dataProvider curlReadSources
+     */
+    public function testRequestWithCurlReadSourceIsSentOnceOnRetryableStatus(int $option, callable $value): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setCurlOptions([$option => $value()])
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(new Request('PUT', 'https://api.example.com/resource'));
+
+        self::assertSame(503, $response->getStatusCode(), 'the first response is returned');
+        self::assertSame(1, $client->calls);
+        self::assertCount(0, $sleeper->sleeps);
+    }
+
+    public function testRequestWithCurlReadSourceIsSentOnceOnTransportException(): void
+    {
+        $client = new ScriptedClient([$this->networkError(), $this->response(200)]);
+        $client->setSleeper(new RecordingSleeper())
+            ->setCurlOptions([\CURLOPT_INFILE => \fopen('php://memory', 'r+')])
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        try {
+            $client->sendRequest(new Request('PUT', 'https://api.example.com/resource'));
+            self::fail('The first transport exception must propagate.');
+        } catch (NetworkException $e) {
+            self::assertSame(1, $client->calls);
+        }
+    }
+
+    public function testClearingTheCurlReadSourceRestoresRetries(): void
+    {
+        $sleeper = new RecordingSleeper();
+        $client = new ScriptedClient([$this->response(503), $this->response(200)]);
+        $client->setSleeper($sleeper)
+            ->setCurlOptions([\CURLOPT_INFILE => \fopen('php://memory', 'r+')])
+            ->setCurlOptions([\CURLOPT_TIMEOUT => 5])
+            ->setRetryPolicy(new RetryPolicy(3, 0.1, 2.0, 30.0, 0.0));
+
+        $response = $client->sendRequest(new Request('PUT', 'https://api.example.com/resource'));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(2, $client->calls);
+    }
+
     public function testRequestWithSeekableBodyIsStillRetried(): void
     {
         $client = new ScriptedClient([$this->response(503), $this->response(200)]);

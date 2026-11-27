@@ -121,7 +121,7 @@ $client = (new Client())->withRetryPolicy(new RetryPolicy(
 
 - Retried by default: transport exceptions (`retryOnException`) and the status codes `408`, `425`, `429`, `500`, `502`, `503` and `504` (`retryableStatusCodes`).
 - Only **idempotent methods** are retried by default: `GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT` and `DELETE`. A `POST` or `PATCH` is sent once; list it in `retryableMethods` to opt in.
-- A request whose body is not seekable is sent once too, because a retry could not send the body again.
+- A request whose body is not seekable is sent once too, because a retry could not send the body again. The same holds while the client's cURL options set `CURLOPT_INFILE`, `CURLOPT_READFUNCTION` or `CURLOPT_READDATA`: that read source is used up by the first attempt.
 - A parseable `Retry-After` header on a retryable response overrides the computed backoff, up to `maxDelay`, unless `respectRetryAfter` is `false`.
 - A non-retryable `4xx`/`5xx` response is still **returned, never thrown**. A retryable response that exhausts `maxAttempts` is returned as-is; a transport exception that exhausts it is re-thrown.
 

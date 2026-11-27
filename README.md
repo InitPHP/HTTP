@@ -180,8 +180,9 @@ Behaviour and backward-compatibility:
   response); a transport exception that exhausts the cap is re-thrown.
 - Only **idempotent methods** (`GET`, `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`)
   are retried by default; `POST` and `PATCH` are sent once unless you list them in
-  `retryableMethods`. A request whose body is not seekable is also sent once,
-  since a retry could not send the body again.
+  `retryableMethods`. A request whose body is not seekable, or whose client sets a cURL read source
+  (`CURLOPT_INFILE`, `CURLOPT_READFUNCTION`, `CURLOPT_READDATA`), is also sent
+  once, since a retry could not send the body again.
 - A parseable `Retry-After` header (delay-seconds or HTTP-date) on a retryable
   response **overrides** the computed backoff, capped at `maxDelay`, unless you
   disable it.
