@@ -4,7 +4,7 @@
 
 | Component             | Minimum               | Notes                                                  |
 |-----------------------|-----------------------|--------------------------------------------------------|
-| PHP                   | **8.2**               | Tested on 8.2, 8.3, 8.4, 8.5 in CI.                    |
+| PHP                   | **8.2**               | Tested on 8.2, 8.3, 8.4, 8.5, 8.6 in CI.              |
 | `ext-json`            | always                | Used by `Response::json()` and `Helpers::send_request`. |
 | `ext-curl`            | only for `Client\Client` | PSR-18 transport. Loaded check happens in the Client constructor — if `ext-curl` is missing you get a `ClientException` saying so. |
 
@@ -58,7 +58,7 @@ composer ci   # php-cs-fixer (dry run) + phpstan + phpunit
 
 ## CI matrix
 
-The package's GitHub Actions workflow runs the test suite against PHP 8.2, 8.3, 8.4 and 8.5 on every push and pull request (plus a PHP 8.2 run with the lowest allowed dependency versions), and runs PHPStan (`level: 5`) and php-cs-fixer on PHP 8.2. See the [tests workflow](https://github.com/InitPHP/HTTP/blob/main/.github/workflows/tests.yml) and the [static analysis workflow](https://github.com/InitPHP/HTTP/blob/main/.github/workflows/static-analysis.yml) for details.
+The package's GitHub Actions workflow runs the test suite against PHP 8.2, 8.3, 8.4, 8.5 and 8.6 on every push and pull request (plus a PHP 8.2 run with the lowest allowed dependency versions), and runs PHPStan (`level: 5`) and php-cs-fixer on PHP 8.2. See the [tests workflow](https://github.com/InitPHP/HTTP/blob/main/.github/workflows/tests.yml) and the [static analysis workflow](https://github.com/InitPHP/HTTP/blob/main/.github/workflows/static-analysis.yml) for details.
 
 ## Next step
 

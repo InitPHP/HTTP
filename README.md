@@ -72,7 +72,7 @@ Emitter::emit($response);
 | `psr/http-factory`   | `^1.0` |
 | `psr/http-client`    | `^1.0` |
 
-Tested on PHP 8.2, 8.3, 8.4 and 8.5 in CI.
+Tested on PHP 8.2, 8.3, 8.4, 8.5 and 8.6 in CI.
 
 ## Installation
 

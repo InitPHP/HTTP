@@ -71,7 +71,7 @@ The package ships four building blocks every PHP service ends up wiring by hand:
 ## Package metadata
 
 - **License**: MIT
-- **Minimum PHP**: 8.2 (tested on 8.2, 8.3, 8.4, 8.5)
+- **Minimum PHP**: 8.2 (tested on 8.2, 8.3, 8.4, 8.5, 8.6)
 - **Runtime dependencies**: `psr/http-message ^1.0 || ^2.0`, `psr/http-factory ^1.0`, `psr/http-client ^1.0`, `ext-json`
 - **Optional**: `ext-curl` (only required by `Client\Client`)
 - **Packagist**: [`initphp/http`](https://packagist.org/packages/initphp/http)
